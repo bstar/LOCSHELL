@@ -130,7 +130,8 @@ static void daWake(void){unsigned i;union REGS r;if(!daSleeping)return;
  if(daGraphics)daGraphicsLeave();
 #endif
  for(i=0;i<daCols*daRows;i++)daVideo[i]=daSaved[i];r.h.ah=1;r.x.cx=daCursor;int86(0x10,&r,&r);daSleeping=0;daIdle=daNow();}
-static int daKey(void){int was=daSleeping;daWake();daIdle=daNow();return was;}
+static int daActivity(void){int was=daSleeping;daWake();daIdle=daNow();return was;}
+static int daKey(void){return daActivity();}
 static void daDraw(const char *state,const char *id,const char *command,unsigned clients,unsigned long sessions,const char *ip){
  unsigned maxblock=0,i,lit;char b[100];union REGS r;
  if(daSleeping)return;
@@ -152,7 +153,7 @@ static void daDraw(const char *state,const char *id,const char *command,unsigned
  for(i=0;i<640;i++)if(daVideo[i]!=daHeader[i]){daVideo[i]=daHeader[i];daHeaderWrites++;}
 }
 static void daPoll(int active){unsigned long now=daNow();unsigned i;
- if(active){daWake();daIdle=now;return;}
+ if(active){daActivity();return;}
  if(!daTimeout)return;
  if(!daSleeping&&daElapsed(now,daIdle)>=daTimeoutTicks){
   for(i=0;i<daCols*daRows;i++)daSaved[i]=daVideo[i];

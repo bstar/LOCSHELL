@@ -4049,7 +4049,7 @@ void scrollMsgArea( int lines ) {
 char logLineBuffer[512];
 
 void addToScreen( int writeLog, const char *fmt, ... ) {
-  daWake();
+  if(daActivity()) redrawStatusLine();
 
   va_list ap;
   va_start( ap, fmt );
@@ -4151,6 +4151,7 @@ void addToScreen( int writeLog, const char *fmt, ... ) {
 // as the logger does, so don't let the logger use this.
 
 void myCprintf( uint8_t x, uint8_t y, uint8_t attr, char *fmt, ... ) {
+  if(daActivity()) redrawStatusLine();
 
   va_list ap;
   va_start( ap, fmt );

@@ -156,3 +156,9 @@ Physical GD5422 benchmark:1000 complete96-star pixel frames took59 BIOS ticks
 (~3.2ms/frame); timed animation149frames/91 BIOS ticks(~5seconds), VGA13=1.
 The production server was uploaded/readback verified and activated by job
 J7482E95. No manual restart is needed for the pixel saver.
+
+Visible events (connections, log messages, console notices and keyboard input)
+reset the full idle countdown even when the dashboard is already awake. If a
+log/console event arrives during the saver, restore text mode and refresh the
+header before writing the message. Periodic status polling does not count as
+activity. Native text/VGA tests cover event wake/restoration and idle reset.
