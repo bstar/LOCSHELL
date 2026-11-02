@@ -2,6 +2,7 @@
 import importlib.util,sys,tempfile,unittest
 from pathlib import Path
 from unittest.mock import patch
+from types import SimpleNamespace
 s=importlib.util.spec_from_file_location('dosctl',Path(__file__).resolve().parents[1]/'management/dosctl.py');m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
 class FTP:
  def __init__(self,quit=True,fail=False):self.files={};self.commands=[];self.quit=quit;self.fail=fail
@@ -28,6 +29,13 @@ class Tests(unittest.TestCase):
   f=FTP(quit=False)
   with self.assertRaises(RuntimeError):self.invoke(f)
   self.assertFalse(f.files)
+ def test_resume_does_not_resubmit(self):
+  f=FTP();base='/NET/JOBS/LOCK';job='J123ABCD'
+  f.files.update({base+'/ID.TXT':job.encode(),base+'/STATE.TXT':b'completed',base+'/RESULT.TXT':b'program_exit_code\n0',base+'/OUTPUT.TXT':b'recovered'})
+  a=SimpleNamespace(credentials=None,cmd='exec',label='recovery test');m.track(a,job,'waiting')
+  with patch.object(m,'connect',return_value=f),patch.object(sys,'argv',['dosctl','resume']):m.main()
+  self.assertFalse((m.state_dir(a)/'pending.json').exists());self.assertNotIn('SITE QUIT',f.commands)
+  self.assertIn('/NET/JOBS/'+job+'/OUTPUT.TXT',f.files)
  def test_incomplete(self):
   f=FTP(fail=True)
   with self.assertRaises(OSError):self.invoke(f)

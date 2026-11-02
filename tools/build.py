@@ -20,3 +20,5 @@ for name in ('FTPSRV','FTPCL','FTPUSR'):
  run(['wpp',str(S/'APPS/FTPSRV'/(name+'.CPP')),'-0','-ml','-s','-ei','-zp2','-dCFG_H="FTPSRV.CFG"','-i='+str(S/'TCPINC'),'-i='+str(S/'INCLUDE')])
 run(['wlink','system','dos','option','map','option','eliminate','option','stack=4096','name','FTPSRV.EXE','file',','.join(p.name for p in B.glob('*.o'))])
 run(['wcl','-q','-bt=dos','-0','-ms','-os','-fe=DOSAGENT.EXE',str(R/'management/agent.c')])
+
+run(['wcl','-q','-bt=dos','-0','-ms','-os','-k12000','-fe=DOSINFO.EXE',str(R/'management/dosinfo.c')])

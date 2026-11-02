@@ -17,8 +17,7 @@ server with no pending job and running C:\NET\FTPSRV.EXE directly with MTCPCFG s
 Once startup is enabled, restore its local .before backups to revert future boots.
 
 Credentials: --credentials JSON with host, port, username, password. Default:
-~/.config/dosctl/access.json; this workstation also supports the existing private
-machine credential record. Credentials are never included in Git.
+~/.config/dosctl/access.json; no alternate credential paths are embedded in the public tool. Credentials are never included in Git.
 
 Examples:
 
@@ -162,3 +161,66 @@ reset the full idle countdown even when the dashboard is already awake. If a
 log/console event arrives during the saver, restore text mode and refresh the
 header before writing the message. Periodic status polling does not count as
 activity. Native text/VGA tests cover event wake/restoration and idle reset.
+
+## Agent recipes and structured results
+
+```
+dosctl --json recipes
+dosctl --json recipe doctor
+dosctl --json recipe memory
+dosctl --json recipe storage-check
+dosctl --json recipe storage-check --deep --path 'D:\DATA'
+dosctl --json inventory --path 'C:\NET\AGENT'
+dosctl --json recipe logs
+dosctl --json recipe deployment-check --manifest release.json
+dosctl --json status
+dosctl --json resume
+dosctl --json reports --limit 10
+```
+
+The public library contains doctor, memory, inventory, storage-check, logs and
+deployment-check. FTP-only checks do not stop the server. Scans/capacity/memory
+use a read-only DOSINFO.EXE helper or MEM job. Deploy DOSINFO.EXE to
+C:\NET\AGENT after building it with tools/build.py. No repair/delete command
+is part of these recipes. Inventory defaults to C:; --all-drives is explicit.
+Storage is capacity-only by default; --deep adds scoped file-size analysis.
+Optional --hash reads file contents to calculate CRC32 duplicate candidates,
+not collision-free identity proof. Active LOCK files are excluded from scans.
+A deployment manifest is {"files":{"/REMOTE/FILE":"SHA256 hex"}}.
+
+Recipe JSON includes collection time, state, host, findings, job IDs and local
+artifact directory. A needs-attention diagnostic can finish successfully;
+waiting means a submitted job continues after the client stops waiting.
+status returns idle when there is no outstanding remote job. resume consults
+persistent local job records and retrieves the same ID without resubmission.
+Archived IDs remain available with result JOBID. Reports and job records are
+private under ~/.local/state/dosctl (DOSCTL_STATE_DIR overrides it); reports
+lists cached collection times without connecting. Memory metrics describe the
+job context with FTP absent, not memory while the FTP child is resident.
+Use --label on run/exec to supply a readable task name; recipes do so automatically.
+
+Credentials are read from ~/.config/dosctl/access.json or --credentials. Keep
+that file private. No machine/account credentials are included in this project.
+
+### Private extensions
+
+Put machine-specific recipes in custom_recipes/*.py, which is gitignored, or
+select a separate directory with DOSCTL_CUSTOM_RECIPES. The public library works
+with that directory absent. Each plugin exports RECIPES (name mapped to a
+transport/description pair) and execute(args, api), returning a JSON-compatible
+report. Names must be unique. Files beginning with an underscore are helpers
+and are not loaded. These are trusted local Python extensions.
+
+Example plugin interface, without any machine-specific configuration:
+
+```python
+RECIPES = {"local-check": ("FTP", "Read server status")}
+def execute(args, api):
+    with api.connect(args) as ftp:
+        return {"recipe": args.name, "state": "completed",
+                "status": ftp.sendcmd("NOOP")}
+```
+
+Keep private recipe implementations, inventories, application configurations
+and custom test fixtures out of public source and commits. Discovery identifies
+extensions as source=custom. The CLI does not make custom recipes public.

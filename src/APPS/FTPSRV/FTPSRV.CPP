@@ -4191,6 +4191,13 @@ void redrawStatusLine( void ) {
   if(f){fgets(state,sizeof(state),f);fclose(f);f=fopen("C:\\NET\\JOBS\\LOCK\\ID.TXT","r");if(f){fgets(id,sizeof(id),f);fclose(f);}f=fopen("C:\\NET\\JOBS\\LOCK\\REQUEST.TXT","r");if(f){char skip[128];fgets(skip,sizeof(skip),f);fgets(skip,sizeof(skip),f);fgets(cmd,sizeof(cmd),f);fclose(f);}}
   else {f=fopen("C:\\NET\\JOBS\\LAST.TXT","r");if(f){fgets(id,sizeof(id),f);fgets(state,sizeof(state),f);fgets(cmd,sizeof(cmd),f);fclose(f);}}
   state[strcspn(state,"\r\n")]=0;id[strcspn(id,"\r\n")]=0;cmd[strcspn(cmd,"\r\n")]=0;
+  if(strlen(id)==8&&id[0]=='J'&&strspn(id+1,"0123456789ABCDEF")==7){
+    char path[80],owner[20]="";
+    sprintf(path,"C:\\NET\\JOBS\\%s\\LABEL.TXT",id);f=fopen(path,"r");
+    if(!f){FILE *o=fopen("C:\\NET\\JOBS\\LOCK\\ID.TXT","r");if(o){fgets(owner,sizeof(owner),o);fclose(o);owner[strcspn(owner,"\r\n")]=0;}
+      if(!strcmp(owner,id))f=fopen("C:\\NET\\JOBS\\LOCK\\LABEL.TXT","r");}
+    if(f){fgets(cmd,sizeof(cmd),f);cmd[strcspn(cmd,"\r\n")]=0;fclose(f);}
+  }
   sprintf(ip,"%u.%u.%u.%u",MyIpAddr[0],MyIpAddr[1],MyIpAddr[2],MyIpAddr[3]);
   daDraw(state,id,cmd,FtpClient::activeClients,SessionCounter,ip);
 }

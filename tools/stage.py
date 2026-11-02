@@ -3,7 +3,7 @@
 from pathlib import Path
 import ftplib,json,io,hashlib
 R=Path(__file__).resolve().parents[1]
-c=json.loads(Path('/home/bstar/projects/pcplus-recomp/build/network-bootstrap-01/private/ftp-access.json').read_text())
+c=json.loads((Path.home()/'.config/dosctl/access.json').read_text())
 with ftplib.FTP() as f:
  f.connect(c['host'],21,timeout=10);f.login(c['username'],c['password'])
  for d in ['/NET/AGENT','/NET/JOBS']:
