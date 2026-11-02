@@ -93,3 +93,17 @@ shared display code under DOSBox-X8086, including wake/restore/client inhibition
 After replacing DOSAGENT.EXE, exit the server with no pending job and start
 C:\NET\NETFTP.BAT to load the new supervisor; uploading cannot change a resident
 parent executable. Original binaries are preserved under unique .BAK names.
+
+The starfield now uses first-person x/z,y/z perspective, with a precomputed
+256-entry Q8 depth table and48 fixed stars. It uses integer arithmetic only,
+no per-frame division/allocation, and at most96 text-cell writes per frame
+(erase old positions, then draw new positions). Only entry clears the screen.
+Cadence is capped at one frame per2 BIOS ticks, without waiting or blocking
+network processing. There is no overlay text; the hardware cursor is hidden
+and restored on wake. Near stars brighten, accelerate outward and recycle.
+The projection follows the standard geometry demonstrated by the
+[raylib starfield example](https://github.com/raysan5/raylib/blob/master/examples/shapes/shapes_starfield_effect.c);
+the DOS integer/text implementation is original and does not depend on raylib.
+Native tests exercise1000 frames, projected depth motion, bounds, text-free
+output, active-client wake, and exact dashboard restoration. These tests do
+not constitute a measured CPU-load benchmark on the physical PC.

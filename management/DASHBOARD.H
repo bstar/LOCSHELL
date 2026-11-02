@@ -8,9 +8,40 @@
 static unsigned short far *daVideo;
 static unsigned short daSaved[4000];
 static unsigned daRows=25, daCols=80;
-static unsigned long daIdle=0,daFrame=0,daTimeout=120;
+static unsigned long daIdle=0,daFrame=0,daTimeout=120,daTimeoutTicks=2184;
 static int daSleeping=0;
-static int daX[48],daY[48],daSpeed[48];
+#define DA_STARS 48
+static int daX[DA_STARS],daY[DA_STARS];
+static unsigned char daZ[DA_STARS];
+static int daPos[DA_STARS];
+static unsigned daRandom=173,daCursor=0;
+/* Q8 perspective scale: 32 world units focal length, no division per frame.
+   Same x/z,y/z geometry as standard starfield demos; original DOS implementation.
+   Reference: raylib/examples/shapes/shapes_starfield_effect.c (not copied). */
+static const unsigned daScale[256]={
+ 512,512,512,512,512,512,512,512,512,512,512,512,512,512,512,512,
+ 512,481,455,431,409,390,372,356,341,327,315,303,292,282,273,264,
+ 256,248,240,234,227,221,215,210,204,199,195,190,186,182,178,174,
+ 170,167,163,160,157,154,151,148,146,143,141,138,136,134,132,130,
+ 128,126,124,122,120,118,117,115,113,112,110,109,107,106,105,103,
+ 102,101,99,98,97,96,95,94,93,92,91,90,89,88,87,86,
+ 85,84,83,82,81,81,80,79,78,78,77,76,75,75,74,73,
+ 73,72,71,71,70,70,69,68,68,67,67,66,66,65,65,64,
+ 64,63,63,62,62,61,61,60,60,59,59,58,58,58,57,57,
+ 56,56,56,55,55,54,54,54,53,53,53,52,52,52,51,51,
+ 51,50,50,50,49,49,49,49,48,48,48,47,47,47,47,46,
+ 46,46,46,45,45,45,45,44,44,44,44,43,43,43,43,42,
+ 42,42,42,42,41,41,41,41,40,40,40,40,40,39,39,39,
+ 39,39,39,38,38,38,38,38,37,37,37,37,37,37,36,36,
+ 36,36,36,36,35,35,35,35,35,35,35,34,34,34,34,34,
+ 34,33,33,33,33,33,33,33,33,32,32,32,32,32,32,32
+};
+static unsigned daRand(void){daRandom=daRandom*25173u+13849u;return daRandom>>8;}
+static void daResetStar(unsigned i,unsigned depth){daX[i]=(int)daRand()-128;daY[i]=(int)daRand()-128;daZ[i]=(unsigned char)depth;}
+static int daProject(unsigned i){int x=40+(int)(((long)daX[i]*daScale[daZ[i]])>>8);
+ int y=(int)(daRows/2)+(int)(((long)daY[i]*daScale[daZ[i]])>>9);
+ return x>=0&&x<80&&y>=0&&y<(int)daRows?y*80+x:-1;}
+
 static unsigned long daNow(void){return *((unsigned long far *)MK_FP(0x40,0x6c));}
 static unsigned long daElapsed(unsigned long a,unsigned long b){return a>=b?a-b:0x1800b0UL-b+a;}
 static void daText(int x,int y,int attr,const char *s){while(*s&&x<(int)daCols){daVideo[y*daCols+x++]=(attr<<8)|(unsigned char)*s++;}}
@@ -20,8 +51,9 @@ static void daInit(void){unsigned mode=*((unsigned char far *)MK_FP(0x40,0x49));
  if(daCols!=80||daRows<25||daRows>50){daCols=80;daRows=25;}
  daVideo=(unsigned short far *)MK_FP(mode==7?0xb000:0xb800,0);daIdle=daNow();
  if(e){long v=atol(e);if(v>=0&&v<=3600)daTimeout=(unsigned long)v;}
+ daTimeoutTicks=daTimeout*182UL/10UL;
 }
-static void daWake(void){unsigned i;if(!daSleeping)return;for(i=0;i<daCols*daRows;i++)daVideo[i]=daSaved[i];daSleeping=0;daIdle=daNow();}
+static void daWake(void){unsigned i;union REGS r;if(!daSleeping)return;for(i=0;i<daCols*daRows;i++)daVideo[i]=daSaved[i];r.h.ah=1;r.x.cx=daCursor;int86(0x10,&r,&r);daSleeping=0;daIdle=daNow();}
 static int daKey(void){int was=daSleeping;daWake();daIdle=daNow();return was;}
 static void daDraw(const char *state,const char *id,const char *command,unsigned clients,const char *ip){
  unsigned maxblock=0,i,lit;char b[100];union REGS r;
@@ -42,14 +74,22 @@ static void daDraw(const char *state,const char *id,const char *command,unsigned
 static void daPoll(int active){unsigned long now=daNow();unsigned i;
  if(active){daWake();daIdle=now;return;}
  if(!daTimeout)return;
- if(!daSleeping&&daElapsed(now,daIdle)>=daTimeout*182UL/10UL){
+ if(!daSleeping&&daElapsed(now,daIdle)>=daTimeoutTicks){
   for(i=0;i<daCols*daRows;i++)daSaved[i]=daVideo[i];
-  for(i=0;i<48;i++){daX[i]=rand()%80;daY[i]=rand()%((daRows-2)*4);daSpeed[i]=1+rand()%3;}
+  for(i=0;i<daRows;i++)daLine(i,0,' ');
+  {union REGS r;r.h.ah=3;r.h.bh=0;int86(0x10,&r,&r);daCursor=r.x.cx;r.h.ah=1;r.x.cx=0x2000;int86(0x10,&r,&r);}
+  for(i=0;i<DA_STARS;i++){daResetStar(i,16+((daRand()*240u)>>8));daPos[i]=-1;}
   daSleeping=1;daFrame=now;
  }
  if(!daSleeping||daElapsed(now,daFrame)<2)return;daFrame=now;
- for(i=0;i<daRows;i++)daLine(i,0,' ');
- for(i=0;i<48;i++){daY[i]+=daSpeed[i];if(daY[i]>=(int)(daRows-2)*4){daY[i]=0;daX[i]=rand()%80;}daVideo[(daY[i]/4)*80+daX[i]]=((daSpeed[i]==3?0x0f:daSpeed[i]==2?0x07:0x08)<<8)|(daSpeed[i]==3?'*':'.');}
- daText(23,daRows-1,0x05,"LoC // SYSTEM ONLINE // ANY KEY");
+ /* Erase only previous stars, then redraw. At most 96 text-cell writes/frame.
+    Erase all first so overlaps cannot erase another star's current position. */
+ for(i=0;i<DA_STARS;i++)if(daPos[i]>=0)daVideo[daPos[i]]=0x0020;
+ for(i=0;i<DA_STARS;i++){
+  if(daZ[i]<=18)daResetStar(i,255);else daZ[i]-=2;
+  daPos[i]=daProject(i);
+  if(daPos[i]<0){daResetStar(i,255);daPos[i]=daProject(i);}
+  if(daPos[i]>=0)daVideo[daPos[i]]=((daZ[i]>160?0x08:daZ[i]>80?0x07:0x0f)<<8)|(daZ[i]>80?'.':249);
+ }
 }
 #endif
