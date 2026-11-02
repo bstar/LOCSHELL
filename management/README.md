@@ -224,3 +224,108 @@ def execute(args, api):
 Keep private recipe implementations, inventories, application configurations
 and custom test fixtures out of public source and commits. Discovery identifies
 extensions as source=custom. The CLI does not make custom recipes public.
+
+## Resumable scan flows
+
+```
+dosctl --json flow start --path 'D:\DATA' --batch 512
+dosctl --json flow list
+dosctl --json flow step T123ABCD
+dosctl --json flow status T123ABCD
+dosctl --json flow run T123ABCD
+dosctl --json flow cancel T123ABCD
+dosctl --json flow result T123ABCD
+```
+
+Start creates a durable scan; step performs one bounded batch and returns FTP;
+run advances batches until completion/cancellation or a wait timeout. Status
+reads the local checkpoint without contacting DOS. Result exports merged records
+and flags partial scans. Cancellation stops before the next batch, never claims
+to kill a running DOS program. A batch limit bounds directory entries processed,
+not time spent on a failing disk. --hash still uses the explicit whole-file CRC
+path; it is not presented as interruptible within a file.
+
+DOSINFO persists DOS find/DTA state and a directory queue under its own task
+folder. Cursor replacement is journaled; output is retained per step. The host
+records submission ownership before waiting, recovers the same job ID and checks
+the returned generation before advancing. Ambiguous/interrupted work is held,
+not replayed. Runner locks prevent concurrent advancement and cancellation is
+sticky across checkpoints. Transient421 connection-slot failures and421/425/426
+responses while polling are retried only for connection/read-only result
+collection. A mutation is never blindly repeated. Credential-profile binding
+prevents advancing a task against another configured target.
+
+Non-hash inventory/deep storage recipes use these flows. Custom audits can reuse
+flows.scan_records and retain partial reports. Flow history exposes each step's
+file count; local state is written atomically with fsync. Active tasks and reports
+remain private under DOSCTL_STATE_DIR.
+
+## Live identity and operational history
+
+`dosctl --json machine` executes the native identity helper and collects actual
+MACHINE/CONFIG/WINMACH environment values, DOS version, job-context memory,
+current video mode, helper version, active FTP protocol and installed file hashes.
+An absent resident-parent version remains unknown until that parent is restarted;
+installed hashes are never treated as proof of what is already resident. A
+private extension can corroborate machine-specific Windows selection records.
+
+`dosctl --json history --limit 30` lists durable UTC events for jobs, file updates,
+flow checkpoints, releases and verification notes. Releases distinguish verified
+bytes from untested runtime behavior. Use `dosctl annotate SUBJECT 'observed
+behavior' --verification software|user-confirmed|pending-physical` to attach
+actual evidence. Do not promote software checks to physical acceptance.
+
+## Transactional application releases
+
+```
+dosctl --json deploy release.json --dry-run
+dosctl --json deploy release.json
+dosctl --json restore R123ABCD
+```
+
+A release manifest contains name, files (source, destination, sha256) and preserve
+patterns. Destinations are absolute FTP paths with DOS8.3 components. Example:
+
+```json
+{"name":"application","preserve":["/APP/*.CFG"],"files":[
+ {"source":"/local/payload/PROGRAM.EXE","destination":"/APP/PROGRAM.EXE",
+  "sha256":"replace-with-actual-64-digit-sha256"}
+]}
+```
+
+All changed files are staged and read-back verified before commit. Original
+bytes are retained locally and under unique remote backup names. A durable
+release journal records each rename. Failure rolls back owned changes when the
+connection remains available; otherwise the result provides release ID/journal
+for explicit recovery. Restore preflights the entire set and refuses independent
+changes or damaged backups. Replaced/new bytes are moved aside, not discarded.
+A successful byte installation records runtime_verified=false until supported
+by actual acceptance evidence. Named application policies live in private custom
+recipes; the public project contains no machine-specific release definitions.
+
+## Experimental resident observer
+
+The separate RXMON prototype offers only heartbeat and80x25 text snapshots over
+an explicitly selected spare serial port. It never executes commands, calls DOS
+from its ISR, hooks the NIC, or registers an Ethernet protocol. It is not added
+to production startup and is not automatically uploaded/installed on real PCs.
+
+Build with `nix develop path:./nix --command python tools/build_resident.py`.
+The experiment explicitly installs on exclusive COM2(2F8h)/IRQ3 at9600baud;
+it refuses a port missing from the BIOS table. Removal currently requires a
+reboot. Verify hardware/IRQ ownership and a suitable cable before physical use.
+
+```
+dosctl --json resident heartbeat --serial /dev/ttyUSB0
+dosctl --json resident screen --serial /dev/ttyUSB0
+```
+
+--tcp localhost:PORT supports a raw DOSBox/serial bridge for testing; it is not
+an SSH gateway. The observer reports unsupported graphics modes rather than
+misinterpreting VGA memory. tools/test_resident.py uses a DOSBox-X build with
+nullmodem support and proves heartbeat/snapshot delivery while an unrelated EXE
+runs without servicing networking. Measured prototype residence18,064 bytes;
+one emulator baseline comparison showed0.42% fewer busy-loop iterations during
+heartbeat/snapshot requests. It generates no DOS Ethernet traffic. These are
+emulator measurements, not physical UART/network acceptance. Existing DOS
+management FTPSRV/job execution remains the production interface.

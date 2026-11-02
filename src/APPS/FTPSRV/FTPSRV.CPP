@@ -1398,14 +1398,15 @@ void doSite( FtpClient *client, char *nextTokenPtr ) {
   char siteCmd[ 10 ];
   nextTokenPtr = Utils::getNextToken( nextTokenPtr, siteCmd, 10 );
 
-  if ( stricmp( siteCmd, "stats" ) == 0 ) {
+  if ( stricmp( siteCmd, "agent" ) == 0 ) { client->addToOutput("211 DOSCTL protocol=2 ftp=2 jobs=1 labels=1" _NL_); }
+  else if ( stricmp( siteCmd, "stats" ) == 0 ) {
     doSiteStats( client );
   }
   else if ( stricmp( siteCmd, "who" ) == 0 ) {
     doSiteWho( client );
   }
   else if ( stricmp( siteCmd, "help" ) == 0 ) {
-    client->addToOutput( "211 Site commands: HELP DISKFREE QUIT STATS WHO" _NL_ );
+    client->addToOutput( "211 Site commands: HELP DISKFREE QUIT STATS WHO AGENT" _NL_ );
   }
   else if ( stricmp( siteCmd, "diskfree" ) == 0 ) {
     doSiteDiskFree( client, nextTokenPtr );

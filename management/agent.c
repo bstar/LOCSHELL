@@ -31,6 +31,7 @@ static int execute(void) {
 int main(int argc,char **argv) {
  const char *server=argc>1?argv[1]:"C:\\NET\\FTPSRV.EXE";int rc;FILE *f;
  if(_chdrive(3)||chdir(ROOT)){puts("Cannot open C:\\NET\\JOBS");return 1;}
+ putenv("DOSAGENT_VERSION=2");
  /* Never replay work whose execution may already have begun. */
  if(!chdir("LOCK")){f=fopen("STATE.TXT","r");if(f){char s[40];fgets(s,sizeof(s),f);fclose(f);if(!strncmp(s,"running",7))state("interrupted\n");}chdir(ROOT);}
  for(;;){rc=spawnl(P_WAIT,server,server,NULL);if(rc) return 1;

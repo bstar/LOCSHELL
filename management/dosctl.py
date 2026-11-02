@@ -7,12 +7,20 @@ ROOT='/NET/JOBS'
 DEFAULT=Path.home()/'.config/dosctl/access.json'
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 import recipes
+import operations,flows
 LAST_RESULT=None
 JSON_MODE=False
 
 def connect(args):
  c=json.loads((args.credentials or DEFAULT).read_text())
- f=ftplib.FTP();f.connect(c['host'],c.get('port',21),timeout=5);f.login(c['username'],c['password']);return f
+ for attempt in range(12):
+  f=ftplib.FTP()
+  try:f.connect(c['host'],c.get('port',21),timeout=5);f.login(c['username'],c['password']);return f
+  except ftplib.error_temp as e:
+   f.close()
+   if not str(e).startswith('421') or attempt==11:raise
+   time.sleep(.25)
+  except BaseException:f.close();raise
 
 def read(f,path):
  b=io.BytesIO();f.retrbinary('RETR '+path,b.write);return b.getvalue()
@@ -32,6 +40,7 @@ def state_dir(a):
 
 def track(a,job,state):
  p=state_dir(a);r={'id':job,'state':state,'updated_at':recipes.timestamp(),'command':a.cmd,'label':getattr(a,'label',None)}
+ operations.history(sys.modules[__name__],'job-'+state,id=job,label=r['label'],scope=p.name)
  path=p/(job+'.json');path.write_text(json.dumps(r)+'\n')
  pending=p/'pending.json'
  if state in ('completed','failed-to-start','interrupted'):
@@ -47,20 +56,70 @@ def command_main():
  for name in ('put','get'):
   s=sub.add_parser(name);s.add_argument('source');s.add_argument('destination')
  for name in ('run','exec'):
-  s=sub.add_parser(name);s.add_argument('program');s.add_argument('--cwd',default='C:\\');s.add_argument('--label');s.add_argument('arguments',nargs='*')
+  s=sub.add_parser(name);s.add_argument('program');s.add_argument('--cwd',default='C:\\');s.add_argument('--label');s.add_argument('--detach',action='store_true');s.add_argument('arguments',nargs='*')
  for name in ('status','result'):
   s=sub.add_parser(name);s.add_argument('job',nargs='?',default='LOCK')
  sub.add_parser('jobs');sub.add_parser('resume')
  inv=sub.add_parser('inventory');inv.add_argument('--path',action='append');inv.add_argument('--all-drives',action='store_true');inv.add_argument('--hash',action='store_true')
  sub.add_parser('recipes')
+ sub.add_parser('machine')
+ h=sub.add_parser('history');h.add_argument('--limit',type=int,default=30)
+ d=sub.add_parser('deploy');d.add_argument('manifest',type=Path);d.add_argument('--dry-run',action='store_true')
+ r=sub.add_parser('restore');r.add_argument('release')
+ resident=sub.add_parser('resident');rs=resident.add_subparsers(dest='resident_command',required=True)
+ for verb in ('heartbeat','screen'):
+  q=rs.add_parser(verb);t=q.add_mutually_exclusive_group(required=True);t.add_argument('--serial');t.add_argument('--tcp')
+ n=sub.add_parser('annotate');n.add_argument('subject');n.add_argument('note');n.add_argument('--verification',choices=['software','user-confirmed','pending-physical'],default='pending-physical')
+ flow=sub.add_parser('flow');fs=flow.add_subparsers(dest='flow_command',required=True)
+ fs.add_parser('list')
+ start=fs.add_parser('start');start.add_argument('--path',action='append');start.add_argument('--batch',type=int,default=512)
+ for verb in ('step','run','status','cancel','result'):fs.add_parser(verb).add_argument('flow')
  r=sub.add_parser('reports');r.add_argument('--limit',type=int,default=20)
- s=sub.add_parser('recipe');s.add_argument('name',choices=recipes.RECIPES);s.add_argument('--path',action='append');s.add_argument('--all-drives',action='store_true');s.add_argument('--deep',action='store_true');s.add_argument('--hash',action='store_true');s.add_argument('--manifest',type=Path)
+ s=sub.add_parser('recipe');s.add_argument('name',choices=recipes.RECIPES);s.add_argument('--path',action='append');s.add_argument('--all-drives',action='store_true');s.add_argument('--deep',action='store_true');s.add_argument('--hash',action='store_true');s.add_argument('--manifest',type=Path);s.add_argument('--source',type=Path);s.add_argument('--dry-run',action='store_true')
  a=p.parse_args()
+ api=sys.modules[__name__]
+ if a.cmd=='resident':
+  import resident_client
+  LAST_RESULT=resident_client.handle(a)
+ elif a.cmd=='flow':LAST_RESULT=flows.handle(a,api)
+ elif a.cmd=='deploy':LAST_RESULT=operations.deploy(a,api)
+ elif a.cmd=='restore':LAST_RESULT=operations.restore(a,api)
+ elif a.cmd=='annotate':
+  LAST_RESULT=operations.history(api,'verification',subject=a.subject,note=a.note,verification=a.verification)
+  if re.fullmatch('R[0-9A-F]{7}',a.subject):
+   release=recipes.BASE/'releases'/a.subject/'release.json'
+   if release.exists():
+    value=json.loads(release.read_text());value['runtime_verified']=a.verification=='user-confirmed';value['runtime_verification']=LAST_RESULT;operations.save(release,value)
+ elif a.cmd=='history':
+  path=recipes.BASE/'history.jsonl';rows=[]
+  for line in path.read_text().splitlines() if path.exists() else []:
+   try:rows.append(json.loads(line))
+   except ValueError:continue
+  LAST_RESULT={'events':rows[-max(0,min(a.limit,1000)):] if a.limit>0 else []}
+ elif a.cmd=='machine':
+  artifact=recipes.artifact_dir();result=flows.invoke(a,['exec','--label','Live machine identity','C:\\NET\\AGENT\\DOSINFO.EXE','--','--identity'])
+  output=result.get('output','');identity={}
+  for line in output.splitlines():
+   parts=line.split('\t')
+   if len(parts)==3:identity.setdefault(parts[0],{})[parts[1]]=parts[2]
+   elif len(parts)==2:identity[parts[0]]=parts[1]
+  if result.get('state')!='completed' or not identity:raise RuntimeError('Identity collection incomplete: '+json.dumps(result))
+  with connect(a) as f:
+   try:active=f.sendcmd('SITE AGENT')
+   except ftplib.error_perm:active='Not supported by active FTP build'
+   installed={}
+   for name in ['FTPSRV.EXE','DOSAGENT.EXE','DOSINFO.EXE']:
+    installed[name]=hashlib.sha256(read(f,'/NET/AGENT/'+name)).hexdigest()
+  LAST_RESULT={'state':'completed','collected_at':recipes.timestamp(),'job':result['id'],'identity':identity,'active_ftp':active,'installed_sha256':installed,'context':'Native job; FTP stopped during memory collection. Installed hashes do not establish resident-parent version.','artifacts':str(artifact)}
+  operations.save(artifact/'machine.json',LAST_RESULT);operations.history(api,'machine-identity',job=result['id'],identity=identity)
+ if a.cmd in ('flow','deploy','restore','annotate','history','machine','resident'):
+  if not JSON_MODE:print(json.dumps(LAST_RESULT,indent=2))
+  return 2 if LAST_RESULT.get('state') in ('waiting','uncertain') else (1 if LAST_RESULT.get('state') in ('failed','error') else 0)
  if a.cmd=='inventory':a.cmd='recipe';a.name='inventory';a.deep=False;a.manifest=None
  if a.cmd in ('recipes','recipe','reports'):
   LAST_RESULT=recipes.execute(a,sys.modules[__name__])
   if not JSON_MODE:print(json.dumps(LAST_RESULT,indent=2))
-  return 2 if LAST_RESULT.get('state')=='waiting' else 0
+  return 2 if LAST_RESULT.get('state') in ('waiting','uncertain') else (1 if LAST_RESULT.get('state') in ('failed','error') else 0)
  if a.cmd=='resume':
   pending=state_dir(a)/'pending.json'
   if not pending.exists():LAST_RESULT={'state':'idle','message':'No locally tracked outstanding job'};print(LAST_RESULT['message']);return
@@ -78,7 +137,8 @@ def command_main():
    data=Path(a.source).read_bytes()
    try:before=read(f,a.destination)
    except ftplib.error_perm:before=None
-   if before is None:put(f,a.destination,data);return
+   if before is None:
+    put(f,a.destination,data);operations.history(api,'file-created',path=a.destination,sha256=hashlib.sha256(data).hexdigest(),runtime_verified=False);return
    if before==data:return
    parent=a.destination.rsplit('/',1)[0];stem='U'+secrets.token_hex(4)[:7].upper()
    stage=parent+'/'+stem+'.NEW';backup=parent+'/'+stem+'.BAK'
@@ -87,6 +147,7 @@ def command_main():
    try:f.rename(stage,a.destination)
    except Exception:f.rename(backup,a.destination);raise
    if read(f,a.destination)!=data:raise RuntimeError('Final readback mismatch; backup: '+backup)
+   operations.history(api,'file-updated',path=a.destination,backup=backup,sha256=hashlib.sha256(data).hexdigest(),runtime_verified=False)
    print('Updated; previous file:',backup);return
   if a.cmd=='get':
    with Path(a.destination).open('xb') as out:out.write(read(f,a.source))
@@ -146,6 +207,7 @@ def command_main():
   print('Submitted',job,flush=True)
   try:f.sendcmd('SITE QUIT')
   except (EOFError,ConnectionError):pass
+ if getattr(a,'detach',False):LAST_RESULT={'id':job,'state':'submitted','label':label};return
  deadline=time.monotonic()+(a.timeout if a.timeout is not None else (900 if a.cmd=='inventory' else 300))
  while time.monotonic()<deadline:
   time.sleep(1)
@@ -174,7 +236,9 @@ def main():
   with contextlib.redirect_stdout(output),contextlib.redirect_stderr(error):rc=command_main() or 0
   result=LAST_RESULT or {'state':'completed' if not rc else 'needs-attention','output':output.getvalue(),'exit_code':rc}
   if error.getvalue():result['diagnostic']=error.getvalue()
- except (OSError,ValueError,RuntimeError,ftplib.Error) as e:rc=1;result={'state':'error','error':str(e)}
+ except (OSError,ValueError,RuntimeError,ftplib.Error) as e:
+  rc=1;state='busy' if str(e).startswith('421') else ('unreachable' if isinstance(e,(ConnectionError,TimeoutError)) or getattr(e,'errno',None) in (101,111,113) else 'error');result={'state':state,'error':str(e)}
+  if isinstance(e,operations.ReleaseFailure):result.update(release_id=e.release_id,journal=e.journal,recovery_state=e.recovery_state)
  print(json.dumps(result,indent=2));return rc
 
 if __name__=='__main__':

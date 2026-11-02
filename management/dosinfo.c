@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <io.h>
 static unsigned long files=0,errors=0,table[256];static int hashing=0;
 static unsigned long crc(const char *path){FILE *f;unsigned char b[2048];unsigned n,i;unsigned long c=0xffffffffUL;
  f=fopen(path,"rb");if(!f){errors++;printf("ERROR\t%s\tread\n",path);return 0;}
@@ -19,9 +20,17 @@ static void scan(const char *path,unsigned depth){struct find_t f;char pattern[8
  strcpy(child,path);if(child[strlen(child)-1]!='\\')strcat(child,"\\");strcat(child,f.name);
  if(f.attrib&_A_SUBDIR)scan(child,depth+1);else{files++;if(hashing)printf("F\t%s\t%lu\t%08lX\n",child,f.size,crc(child));else printf("F\t%s\t%lu\n",child,f.size);}
  }while(!_dos_findnext(&f));}
+#include "chunks.h"
 int main(int argc,char **argv){unsigned d,i,j;struct diskfree_t fs;unsigned long c;
  if(argc<2)return 2;
- if(!strcmp(argv[1],"--disks")){for(d=3;d<=6;d++){if(_dos_getdiskfree(d,&fs)){printf("ERROR\t%c:\\\tdisk-unavailable\n",'A'+d-1);errors++;continue;}
+ if(!strcmp(argv[1],"--chunk")){unsigned limit=argc>2?atoi(argv[2]):512;if(limit<16||limit>4096)return 2;return chunk_run(limit);}
+ else if(!strcmp(argv[1],"--identity")){static const char *names[]={"MACHINE","CONFIG","WINMACH","COMSPEC","MTCPCFG","DOSAGENT_VERSION",NULL};char *v;unsigned biggest=0;union REGS r;
+ for(i=0;names[i];i++){v=getenv(names[i]);printf("ENV\t%s\t%s\n",names[i],v?v:"");}
+ printf("VERSION\tDOSINFO\t2\n");printf("DOS\t%u.%u\n",_osmajor,_osminor);
+ _dos_allocmem(0xffff,&biggest);printf("MEMORY\tlargest_job_block_bytes\t%lu\n",(unsigned long)biggest*16UL);
+ r.x.ax=0x1a00;int86(0x10,&r,&r);printf("VIDEO\tmode\t%u\n",(unsigned)*((unsigned char far *)MK_FP(0x40,0x49)));
+ return 0;}
+ else if(!strcmp(argv[1],"--disks")){for(d=3;d<=6;d++){if(_dos_getdiskfree(d,&fs)){printf("ERROR\t%c:\\\tdisk-unavailable\n",'A'+d-1);errors++;continue;}
  printf("DISK\t%c\t%lu\t%lu\n",'A'+d-1,(unsigned long)fs.total_clusters*fs.sectors_per_cluster*fs.bytes_per_sector,(unsigned long)fs.avail_clusters*fs.sectors_per_cluster*fs.bytes_per_sector);}}
  else if(!strcmp(argv[1],"--scan")||!strcmp(argv[1],"--hash")){hashing=!strcmp(argv[1],"--hash");if(argc<3)return 2;
  if(hashing)for(i=0;i<256;i++){c=i;for(j=0;j<8;j++)c=c&1?(c>>1)^0xedb88320UL:c>>1;table[i]=c;}

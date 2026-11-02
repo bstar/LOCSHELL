@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 import importlib.util,sys,tempfile,unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch,Mock
 from types import SimpleNamespace
-s=importlib.util.spec_from_file_location('dosctl',Path(__file__).resolve().parents[1]/'management/dosctl.py');m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
+s=importlib.util.spec_from_file_location('dosctl',Path(__file__).resolve().parents[1]/'management/dosctl.py');m=importlib.util.module_from_spec(s);sys.modules[s.name]=m;s.loader.exec_module(m)
 class FTP:
  def __init__(self,quit=True,fail=False):self.files={};self.commands=[];self.quit=quit;self.fail=fail
  def __enter__(self):return self
@@ -36,6 +36,13 @@ class Tests(unittest.TestCase):
   with patch.object(m,'connect',return_value=f),patch.object(sys,'argv',['dosctl','resume']):m.main()
   self.assertFalse((m.state_dir(a)/'pending.json').exists());self.assertNotIn('SITE QUIT',f.commands)
   self.assertIn('/NET/JOBS/'+job+'/OUTPUT.TXT',f.files)
+ def test_connection_slot_retry(self):
+  import json,ftplib
+  with tempfile.TemporaryDirectory() as directory:
+   p=Path(directory)/'access.json';p.write_text(json.dumps({'host':'example.invalid','username':'test','password':'test'}))
+   first=Mock();first.connect.side_effect=ftplib.error_temp('421 try later');second=Mock()
+   with patch.object(m.ftplib,'FTP',side_effect=[first,second]),patch.object(m.time,'sleep') as delay:
+    self.assertIs(m.connect(SimpleNamespace(credentials=p)),second);first.close.assert_called_once();delay.assert_called_once()
  def test_incomplete(self):
   f=FTP(fail=True)
   with self.assertRaises(OSError):self.invoke(f)

@@ -46,7 +46,7 @@ def execute(a,api):
    try:r=json.loads(p.read_text());records.append({k:r.get(k) for k in ['recipe','state','collected_at','artifacts','jobs']})
    except (OSError,ValueError):continue
   return {'cached':True,'reports':records}
- if a.cmd=='recipes':return {'recipes':[{'name':k,'transport':v[0],'description':v[1],'default_timeout_seconds':900 if v[0]=='job' else None,'changes_user_files':False,'source':'custom' if k in CUSTOM else 'builtin'} for k,v in RECIPES.items()]}
+ if a.cmd=='recipes':return {'recipes':[{'name':k,'transport':v[0],'description':v[1],'default_timeout_seconds':900 if v[0]=='job' else None,'changes_user_files':bool(v[2]) if len(v)>2 else False,'source':'custom' if k in CUSTOM else 'builtin'} for k,v in RECIPES.items()]}
  name=a.name
  if a.path and a.all_drives:raise ValueError('Choose --path or --all-drives')
  for path in a.path or []:
@@ -118,9 +118,12 @@ def execute(a,api):
    paths=a.path or (['C:\\','D:\\','E:\\','F:\\'] if a.all_drives else ['C:\\'])
    for p in paths:
     if not re.fullmatch(r'[C-Fc-f]:\\[^*?\r\n\t]*',p):raise ValueError('Use absolute C:/D:/E:/F: DOS directories, no wildcards')
-   output=job('C:\\NET\\AGENT\\DOSINFO.EXE',['--hash' if a.hash else '--scan']+paths,'scan')
+   if not a.hash:
+    import flows
+    rows,errors,end=flows.scan_records(a,api,paths,report,out);output='flow'
+   else:output=job('C:\\NET\\AGENT\\DOSINFO.EXE',['--hash']+paths,'scan');rows,errors,end=parse_scan(output or '')
    if output:
-    rows,errors,end=parse_scan(output);report['scan']={'paths':paths,'summary':end,'errors':errors,'hash':'CRC32 candidate fingerprint only' if a.hash else None};(out/'inventory.json').write_text(json.dumps(rows,indent=2))
+    report['scan']={'paths':paths,'summary':end,'errors':errors,'hash':'CRC32 candidate fingerprint only' if a.hash else None};(out/'inventory.json').write_text(json.dumps(rows,indent=2))
     if end is None:report['findings'].append({'kind':'incomplete-scan'})
     report['findings'] += [{'kind':'scan-error','details':x} for x in errors]
     if name=='storage-check':
