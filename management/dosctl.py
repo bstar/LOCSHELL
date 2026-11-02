@@ -22,7 +22,7 @@ def text(s):
  return s
 
 def main():
- p=argparse.ArgumentParser(description=__doc__);p.add_argument('--credentials',type=Path);p.add_argument('--timeout',type=float,default=300)
+ p=argparse.ArgumentParser(description=__doc__);p.add_argument('--credentials',type=Path);p.add_argument('--timeout',type=float,default=None)
  sub=p.add_subparsers(dest='cmd',required=True)
  for name in ('put','get'):
   s=sub.add_parser(name);s.add_argument('source');s.add_argument('destination')
@@ -91,7 +91,7 @@ def main():
   print('Submitted',job,flush=True)
   try:f.sendcmd('SITE QUIT')
   except (EOFError,ConnectionError):pass
- deadline=time.monotonic()+a.timeout
+ deadline=time.monotonic()+(a.timeout if a.timeout is not None else (900 if a.cmd=='inventory' else 300))
  while time.monotonic()<deadline:
   time.sleep(1)
   try:

@@ -13,7 +13,8 @@ Stage: `python tools/stage.py` uploads only new files under C:\NET\AGENT and
 creates C:\NET\JOBS. It refuses overwrites. Exit the current server locally and
 run `C:\NET\AGENT\START.BAT` for initial acceptance. Existing boot entry points
 remain unchanged until that acceptance succeeds. Revert by exiting the supervisor's
-server with no pending job and running C:\NET\NETFTP.BAT.
+server with no pending job and running C:\NET\FTPSRV.EXE directly with MTCPCFG set to C:\NET\MTCP.CFG.
+Once startup is enabled, restore its local .before backups to revert future boots.
 
 Credentials: --credentials JSON with host, port, username, password. Default:
 ~/.config/dosctl/access.json; this workstation also supports the existing private
@@ -56,3 +57,17 @@ COMMAND.COM's status, not a guaranteed last-command errorlevel. Standard handles
 
 Keep Network management boot selected. NIC and modem share IRQ5: reboot before
 modem use. Do not modify XTIDE/NIC settings or re-enable the After Dark TSR here.
+
+
+## Physical acceptance (2026-11-01)
+
+The actual DOS6.22 PC passed remote BAT execution, native MEM /C execution,
+stdout/stderr/result retrieval, server reconnects, and replacement/read-back of
+a disposable file with its previous version preserved. MEM reported596,784
+conventional bytes free during native execution; supervisor occupies28,672 bytes.
+All-drive inventory J50723F3 completed with shell_exit_code0 and30,156 lines of
+retrieved result/output. Its initial180-second client wait expired; `dosctl result`
+subsequently recovered the SAME job and archived it without re-execution.
+Inventory now defaults to900 seconds, other jobs300; --timeout overrides both.
+Startup entry points NETFTP.BAT and NETMGR.BAT were updated only after acceptance;
+no reboot has been forced or claimed tested. Original FTPSRV remains in C:\NET.
