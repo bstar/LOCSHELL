@@ -1,3 +1,6 @@
+/* Modified by the LoC fork beginning 2026-11-01: DOS management job
+ * handoff/capabilities, dashboard integration and idle/event display behavior.
+ * Original mTCP attribution and license follow unchanged; see NOTICE.md. */
 #define DA_GRAPHICS_SAVER
 #include "DASHBOARD.H"
 /*

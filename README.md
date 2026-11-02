@@ -1,78 +1,61 @@
-# mTCP TCP/IP library and applications for DOS
+# LoC DOS management
 
-Home page: http://www.brutman.com/mTCP/mTCP.html
+A DOS machine management environment from **LoSs oF CoNtRoL (LoC)**, maintained
+by **bstar**, built on **Michael B. Brutman's mTCP**.
 
-## Welcome mTCP!
+This is an independently maintained fork. The official mTCP project is
+[mbbrutman/mTCP](https://github.com/mbbrutman/mTCP); its
+[home page](http://www.brutman.com/mTCP/mTCP.html) documents the original TCP/IP
+library and applications. See [NOTICE.md](NOTICE.md) for credits, licensing and
+which parts this fork changes.
 
-This mTCP project is a TCP/IP library and applications for older IBM compatible personal computers
-running DOS.  The applications include a DHCP client, FTP client and server, HTTP server, an IRC
-client, NetCat (TCP only), mTCP NetDrive (network attached storage for DOS), Ping, and SNTP client,
-and a Telnet client.  See the home page for details.
+## What this fork adds
 
-This is the official github repository for the project. While I prefer to distribute the source code
-as a ZIP file on the home page I also recognize that people are using github for their projects and
-they want a github repository to reference or fork from so that they can keep up with changes.
+- A DOS operations dashboard with job status, a memory indicator and an idle
+  VGA starfield with a text-mode fallback.
+- A foreground job supervisor and host-side `dosctl` CLI for verified FTP
+  updates, script execution, result retrieval and recovery after client timeouts.
+- Resumable inventory scans with bounded steps, partial results and cancellation
+  between steps.
+- Live machine identity, deployment and restore journals, and operation history.
+- Discoverable diagnostic recipes with gitignored private extensions.
+- An experimental serial heartbeat and text-screen observer. It has been tested
+  in DOSBox and is not installed automatically or claimed hardware-validated.
 
-For detailed information on how the source code is structured please see the developers.pdf file. Topics include the directory
-structure, what compiler to use, architecture and design notes, and miscellaneous notes for programming under DOS.
+The production interface uses FTP and foreground DOS jobs. FTP pauses during a
+job and returns when it exits. This is not an interactive SSH service; arbitrary
+DOS programs can still require local recovery if they hang.
 
-## Compiling and building
+## Build and use
 
-mTCP is compiled using Open Watcom 1.9 under Windows, cross compiled for 16 bit DOS. If you want to use Linux for your build
-environment you will run into some problems with the case of the filenames; Windows is not case sensitive but Linux is. That
-will be fixed in a future release.
+The pinned Nix environment provides Open Watcom, Python and DOSBox-X:
 
-Each program has its own directory and MAKEFILE. To compile a program, find its directory under APPS and run "wmake."
+```sh
+nix develop path:./nix --command python tools/build.py
+python management/dosctl.py --help
+```
 
-Each MAKEFILE also as a "patch" target, which runs a simple patch program against the EXE file.  The patch program
-removes the ability to grow the near heap when far data pointers are used, saving some RAM. It also fixes a run-time bug
-that mis-identifies IBM clones like the original Compaq Portable because their date code in BIOS doesn't perfectly match
-what IBM did in the original IBM 5150 PC.  If you want to run the patch target then build the patch program first
-by going to UTILS and running wmake.
+See the [management guide](management/README.md) for installation, credentials,
+commands, testing, limitations and physical acceptance notes. Builds produce
+`FTPSRV.EXE`, `DOSAGENT.EXE` and `DOSINFO.EXE` under `build/`. Existing executable
+names, DOS paths and the `dosctl` command remain stable.
 
-## Forking and dependencies
+Credentials and host-side operational state belong outside Git. Machine-specific
+recipes belong in gitignored `custom_recipes/`; public examples must not contain
+machine passwords, account data, private inventories or deployment policies.
 
-If you are including mTCP in your project to use the TCP/IP library, consider using git submodules. Yes, you are
-introducing a dependency but it will help keep you up to date, especially as the mTCP library changes and gets
-fixes or new features. The API has been stable for years. See https://github.com/radozd/ftp2p for an example of
-how to use mTCP as a submodule.
+## Upstream, support and license
 
-Forking is also a reasonable alternative - at least you can see the upstream changes when they happen.
+We retain mTCP's fork relationship and the `upstream` Git remote so that its
+networking fixes remain reviewable. Read the [upstream maintenance policy](docs/UPSTREAM.md).
+The original upstream README is preserved [here](docs/upstream/README.md).
 
-## Support
+Report problems with this fork's additions to
+[this repository](https://github.com/bstar/mTCP/issues). Michael Brutman is not
+responsible for supporting these changes. Fork development is AI-assisted;
+upstream's development statements describe its own project.
 
-I want you to have a great experience with mTCP and I provide support via email.  Please send your questions, bug reports
-and feature requests to me to me at the email address listed above.  There is also a low-volume mailing list you can
-subscribe to at https://groups.google.com/g/mtcp.
-
-If you are running an older version of mTCP please try the latest version first before contacting me; your problem might
-be a bug that has already been fixed.  You can use SERVICES.BAT to do a quick check to see if a new version is available
-right from your DOS machine.
-
-Don't understand the documentation?  That might be my fault.  Send me an email with your question and I'll try to make
-it more clear.
-
-Can't make it work?  There could be lots of reasons.  I try to explain the common problems in the PDF documentation.
-If you have something that is truly uncommon and you are tired of banging your head on the wall send me an email.
-There might be a bug or you might just need a gentle prod in the right direction.
-
- If you do ask for help via email please send me the following:
-
-  * the version of mTCP you are running.
-  * the class/type of hardware you are running on. (e.g.: Compaq Portable, PCjr, PS/2, DOSBox, generic Pentium, virtual machine, etc.)
-  * the version of DOS you are using.
-  * the details of your problem including what you think the problem is, what server you are connecting to, how to recreate the problem, etc.
-
-If your problem is complex I may ask you to collect traces using the mTCP debug features.  Usually we can get to the bottom of the problem.
-
-## My views on AI
-
-This is my hobby project, and I do this for fun. As a result, I insist on doing my own work and I do not use AI
-for any part of this project.
-
-## Like what you see?  Want to say thanks?
-
-Thank you!  I have never accepted any money, beer or cookies for my work. If you want to say thanks in a tangible way
-I've never seen an animal shelter that was over-funded.
-
-I also have mTCP stickers to hand out if you ever see me in person.
+mTCP's original attribution and copyright notices remain in place. The GNU GPL
+version 3 is included in [LICENSE](LICENSE); consult individual source notices
+as well. This fork does not claim to have created mTCP or to be its official
+release. See [NOTICE.md](NOTICE.md) for distribution and source requirements.
