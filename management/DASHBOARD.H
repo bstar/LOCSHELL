@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <memory.h>
 static unsigned short far *daVideo;
 static unsigned short daSaved[4000];
 /* Compose the complete header off-screen, then commit only changed cells. */
@@ -16,10 +17,50 @@ static void daCell(unsigned pos,unsigned short value){if(daComposing)daHeader[po
 static unsigned daRows=25, daCols=80;
 static unsigned long daIdle=0,daFrame=0,daTimeout=120,daTimeoutTicks=2184;
 static int daSleeping=0;
+#ifdef DA_GRAPHICS_SAVER
+#define DA_STARS 96
+static int daGraphics=0;
+static unsigned char daVgaState[4096],daFont[8192];
+static unsigned char far *daPixels=(unsigned char far *)MK_FP(0xa000,0);
+static unsigned daOldMode=3;
+static unsigned daReg(unsigned port,unsigned index){outp(port,index);return inp(port+1);}
+static void daSetReg(unsigned port,unsigned index,unsigned value){outp(port,index);outp(port+1,value);}
+/* Map VGA font plane temporarily, preserving every register we change. */
+static void daFontCopy(int restore){unsigned s2,s4,g4,g5,g6,si,gi;unsigned i;
+ unsigned char far *v=(unsigned char far *)MK_FP(0xa000,0);
+ si=inp(0x3c4);gi=inp(0x3ce);s2=daReg(0x3c4,2);s4=daReg(0x3c4,4);
+ g4=daReg(0x3ce,4);g5=daReg(0x3ce,5);g6=daReg(0x3ce,6);
+ daSetReg(0x3c4,2,4);daSetReg(0x3c4,4,6);daSetReg(0x3ce,4,2);daSetReg(0x3ce,5,0);daSetReg(0x3ce,6,4);
+ for(i=0;i<8192;i++){if(restore)v[i]=daFont[i];else daFont[i]=v[i];}
+ daSetReg(0x3c4,2,s2);daSetReg(0x3c4,4,s4);daSetReg(0x3ce,4,g4);daSetReg(0x3ce,5,g5);daSetReg(0x3ce,6,g6);outp(0x3c4,si);outp(0x3ce,gi);
+}
+static void daGraphicsLeave(void);
+static int daGraphicsEnter(void){union REGS r;struct SREGS seg;unsigned si,map,i;char *backend=getenv("DOSAGENT_VIDEO");
+ if(backend&&!stricmp(backend,"text"))return 0;
+ r.x.ax=0x1a00;int86(0x10,&r,&r);if(r.h.al!=0x1a||(r.h.bl!=7&&r.h.bl!=8))return 0;
+ daOldMode=*((unsigned char far *)MK_FP(0x40,0x49));
+ if(daOldMode!=3||daRows!=25)return 0;
+ /* Nonstandard font banks keep the compatible text saver. */
+ si=inp(0x3c4);map=daReg(0x3c4,3);outp(0x3c4,si);if(map)return 0;
+ r.x.ax=0x1c00;r.x.cx=7;int86(0x10,&r,&r);if(r.h.al!=0x1c||r.x.bx>64)return 0;
+ segread(&seg);seg.es=FP_SEG(daVgaState);r.x.ax=0x1c01;r.x.cx=7;r.x.bx=FP_OFF(daVgaState);int86x(0x10,&r,&r,&seg);if(r.h.al!=0x1c)return 0;
+ daFontCopy(0);r.x.ax=0x13;int86(0x10,&r,&r);
+ if(*((unsigned char far *)MK_FP(0x40,0x49))!=0x13){daGraphicsLeave();return 0;}
+ /* One-byte pixels on GD5422, standard VGA timings, no bank switches/clock tweaks. */
+ outp(0x3c8,0);outp(0x3c9,0);outp(0x3c9,0);outp(0x3c9,0);
+ for(i=1;i<32;i++){outp(0x3c9,i*2+1);outp(0x3c9,i*2+1);outp(0x3c9,i*2+1);}
+ return 1;
+}
+static void daGraphicsLeave(void){union REGS r;struct SREGS seg;
+ r.x.ax=daOldMode;int86(0x10,&r,&r);daFontCopy(1);
+ segread(&seg);seg.es=FP_SEG(daVgaState);r.x.ax=0x1c02;r.x.cx=7;r.x.bx=FP_OFF(daVgaState);int86x(0x10,&r,&r,&seg);daGraphics=0;
+}
+#else
 #define DA_STARS 48
+#endif
 static int daX[DA_STARS],daY[DA_STARS];
 static unsigned char daZ[DA_STARS];
-static int daPos[DA_STARS];
+static unsigned daPos[DA_STARS];
 static unsigned daRandom=173,daCursor=0;
 static unsigned daPitLast=0;
 static unsigned long daPitBudget=0;
@@ -57,7 +98,11 @@ static const unsigned daScale[256]={
 };
 static unsigned daRand(void){daRandom=daRandom*25173u+13849u;return daRandom>>8;}
 static void daResetStar(unsigned i,unsigned depth){daX[i]=(int)(daRand()&127)-64;daY[i]=(int)(daRand()&127)-64;daZ[i]=(unsigned char)depth;}
-static int daProject(unsigned i){int x,y;
+static unsigned daProject(unsigned i){int x,y;
+#ifdef DA_GRAPHICS_SAVER
+ if(daGraphics){x=160+((daX[i]*(int)daScale[daZ[i]])>>5);y=100+((daY[i]*(int)daScale[daZ[i]])>>5);
+ return x>=0&&x<320&&y>=0&&y<200?(unsigned)y*320u+(unsigned)x:65535u;}
+#endif
 #ifdef DA_FPU_PROJECTION
  x=40+(int)((float)daX[i]*64.0f/(float)daZ[i]);
  y=(int)(daRows/2)+(int)((float)daY[i]*32.0f/(float)daZ[i]);
@@ -80,7 +125,11 @@ static void daInit(void){unsigned mode=*((unsigned char far *)MK_FP(0x40,0x49));
  if(e){long v=atol(e);if(v>=0&&v<=3600)daTimeout=(unsigned long)v;}
  daTimeoutTicks=daTimeout*182UL/10UL;
 }
-static void daWake(void){unsigned i;union REGS r;if(!daSleeping)return;for(i=0;i<daCols*daRows;i++)daVideo[i]=daSaved[i];r.h.ah=1;r.x.cx=daCursor;int86(0x10,&r,&r);daSleeping=0;daIdle=daNow();}
+static void daWake(void){unsigned i;union REGS r;if(!daSleeping)return;
+#ifdef DA_GRAPHICS_SAVER
+ if(daGraphics)daGraphicsLeave();
+#endif
+ for(i=0;i<daCols*daRows;i++)daVideo[i]=daSaved[i];r.h.ah=1;r.x.cx=daCursor;int86(0x10,&r,&r);daSleeping=0;daIdle=daNow();}
 static int daKey(void){int was=daSleeping;daWake();daIdle=daNow();return was;}
 static void daDraw(const char *state,const char *id,const char *command,unsigned clients,unsigned long sessions,const char *ip){
  unsigned maxblock=0,i,lit;char b[100];union REGS r;
@@ -107,6 +156,10 @@ static void daPoll(int active){unsigned long now=daNow();unsigned i;
  if(!daTimeout)return;
  if(!daSleeping&&daElapsed(now,daIdle)>=daTimeoutTicks){
   for(i=0;i<daCols*daRows;i++)daSaved[i]=daVideo[i];
+  #ifdef DA_GRAPHICS_SAVER
+  daGraphics=daGraphicsEnter();
+  if(!daGraphics)
+#endif
   for(i=0;i<daRows;i++)daLine(i,0,' ');
   {union REGS r;r.h.ah=3;r.h.bh=0;int86(0x10,&r,&r);daCursor=r.x.cx;r.h.ah=1;r.x.cx=0x2000;int86(0x10,&r,&r);}
   for(i=0;i<DA_STARS;i++){daResetStar(i,16+((daRand()*240u)>>8));daPos[i]=-1;}
@@ -121,12 +174,20 @@ static void daPoll(int active){unsigned long now=daNow();unsigned i;
  daFrame=now;daRendered++;
  /* Erase only previous stars, then redraw. At most 96 text-cell writes/frame.
     Erase all first so overlaps cannot erase another star's current position. */
- for(i=0;i<DA_STARS;i++)if(daPos[i]>=0)daVideo[daPos[i]]=0x0020;
+ for(i=0;i<DA_STARS;i++)if(daPos[i]!=65535u){
+#ifdef DA_GRAPHICS_SAVER
+ if(daGraphics)daPixels[daPos[i]]=0;else
+#endif
+ daVideo[daPos[i]]=0x0020;}
  for(i=0;i<DA_STARS;i++){
   if(daZ[i]<=18)daResetStar(i,255);else daZ[i]-=2;
   daPos[i]=daProject(i);
-  if(daPos[i]<0){daResetStar(i,255);daPos[i]=daProject(i);}
-  if(daPos[i]>=0)daVideo[daPos[i]]=((daZ[i]>160?0x08:daZ[i]>80?0x07:0x0f)<<8)|(daZ[i]>80?'.':249);
+  if(daPos[i]==65535u){daResetStar(i,255);daPos[i]=daProject(i);}
+  if(daPos[i]!=65535u){
+#ifdef DA_GRAPHICS_SAVER
+  if(daGraphics)daPixels[daPos[i]]=1+((255-daZ[i])>>3);else
+#endif
+  daVideo[daPos[i]]=((daZ[i]>160?0x08:daZ[i]>80?0x07:0x0f)<<8)|(daZ[i]>80?'.':249);}
  }
 }
 #endif

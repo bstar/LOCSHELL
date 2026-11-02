@@ -132,3 +132,27 @@ Benchmark sources: tools/star_bench.c (integer or -fpi87 -fp3
 -dDA_FPU_PROJECTION; latter requires a387) and tools/star_render_bench.c.
 The new FTPSRV was activated automatically via job J8C46033 after upload;
 no manual restart is needed for the starfield/header updates.
+
+## GD5422 pixel starfield and fallback
+
+The FTP server now defaults to a320x200,256-color VGA(mode13h) saver with96
+stars and32 grayscale palette entries. It writes directly to the GD5422's VGA
+aperture: at most192 byte pixel writes per frame, no bank switching, full-frame
+RAM buffer, hardware blitter assumption, or card clock/ISA timing changes.
+It retains the integer30fps pacing and network polling. Graphics-only font/state
+buffers are compiled into FTPSRV, not the resident supervisor.
+
+Entry checks VGA BIOS capability,80x25 mode3, standard font-bank selection,
+and BIOS video-state save support before switching; it verifies the resulting
+mode. Unsupported setups automatically use the compatible text starfield.
+Set DOSAGENT_VIDEO=text before starting NETFTP to force text; unset it or use
+DOSAGENT_VIDEO=auto for automatic selection. A failed switch restores the saved
+text setup before fallback. Wake restores text cells, the8KB font plane, VGA
+hardware/BIOS/DAC state and cursor. Windows settings/drivers are not changed.
+Tests: `python tools/test_vga.py` exercises1000 frames, bounds and exact text,
+custom-font and palette restoration, forced text fallback and automatic EGA
+fallback. `python tools/test_ui.py` retains text/header/saver regression checks.
+Physical GD5422 benchmark:1000 complete96-star pixel frames took59 BIOS ticks
+(~3.2ms/frame); timed animation149frames/91 BIOS ticks(~5seconds), VGA13=1.
+The production server was uploaded/readback verified and activated by job
+J7482E95. No manual restart is needed for the pixel saver.

@@ -1,3 +1,4 @@
+#define DA_GRAPHICS_SAVER
 #include "DASHBOARD.H"
 /*
 
