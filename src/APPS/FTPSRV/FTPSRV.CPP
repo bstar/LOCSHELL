@@ -1,3 +1,4 @@
+#include "DASHBOARD.H"
 /*
 
    mTCP FtpSrv.cpp
@@ -412,6 +413,7 @@ static char CopyrightMsg2[] = "Version: " __DATE__ "\n\n";
 
 int main( int argc, char *argv[] ) {
 
+  daInit();
   initScreen( );
 
   addToScreen( 0, "%s  %s", CopyrightMsg1, CopyrightMsg2 );
@@ -450,6 +452,7 @@ int main( int argc, char *argv[] ) {
     PACKET_PROCESS_MULT( PacketsPerPoll );
     Arp::driveArp( );
     Tcp::drivePackets( );
+    daPoll(FtpClient::activeClients);
 
 
     // Every five minutes check to see if we have to resolve the external IP address.
@@ -537,6 +540,7 @@ int main( int argc, char *argv[] ) {
           if ( biosIsKeyReady( ) ) {
 
             uint16_t key = biosKeyRead( );
+            if(daKey()) continue;
 
             if ( (key & 0xff) == 0 ) {
 
@@ -4023,7 +4027,7 @@ int8_t resolveAddr( void ) {
 
 
 void scrollMsgArea( int lines ) {
-  memmove( (void *)(Screen_base + 2*(ScreenCols*2)), (void *)(Screen_base + (2+lines)*(ScreenCols*2)), ((ScreenRows-2)-lines)*(ScreenCols*2) );
+  memmove( (void *)(Screen_base + 8*(ScreenCols*2)), (void *)(Screen_base + (8+lines)*(ScreenCols*2)), ((ScreenRows-8)-lines)*(ScreenCols*2) );
   uint16_t far *start = (uint16_t far *)(Screen_base + (ScreenRows-lines)*(ScreenCols*2));
   fillUsingWord( start, (7<<8), lines*ScreenCols);
 }
@@ -4044,6 +4048,7 @@ void scrollMsgArea( int lines ) {
 char logLineBuffer[512];
 
 void addToScreen( int writeLog, const char *fmt, ... ) {
+  daWake();
 
   va_list ap;
   va_start( ap, fmt );
@@ -4178,15 +4183,14 @@ mTCP FTPSrv: Total Connections: 00000  Active Sessions: 00
 */
 
 void redrawStatusLine( void ) {
-
-  myCprintf(  0, 0, 0x1F, "mTCP FTPSrv:" );
-  myCprintf( 14, 0, 0x0F, "Total Sessions:" );
-  myCprintf( 30, 0, 0x07, "%5d", SessionCounter );
-  myCprintf( 37, 0, 0x0F, "Active Sessions:" );
-  myCprintf( 54, 0, 0x07, "%2d", FtpClient::activeClients );
-
-  myCprintf( 60, 0, 0x0F, "Use Alt-H for Help" );
-
+  char state[40]="READY",id[20]="--",cmd[128]="Awaiting workstation jobs",ip[24];FILE *f;
+  f=fopen("C:\\NET\\JOBS\\LOCK\\STATE.TXT","r");
+  if(f){fgets(state,sizeof(state),f);fclose(f);f=fopen("C:\\NET\\JOBS\\LOCK\\ID.TXT","r");if(f){fgets(id,sizeof(id),f);fclose(f);}f=fopen("C:\\NET\\JOBS\\LOCK\\REQUEST.TXT","r");if(f){char skip[128];fgets(skip,sizeof(skip),f);fgets(skip,sizeof(skip),f);fgets(cmd,sizeof(cmd),f);fclose(f);}}
+  else {f=fopen("C:\\NET\\JOBS\\LAST.TXT","r");if(f){fgets(id,sizeof(id),f);fgets(state,sizeof(state),f);fgets(cmd,sizeof(cmd),f);fclose(f);}}
+  state[strcspn(state,"\r\n")]=0;id[strcspn(id,"\r\n")]=0;cmd[strcspn(cmd,"\r\n")]=0;
+  sprintf(ip,"%u.%u.%u.%u",MyIpAddr[0],MyIpAddr[1],MyIpAddr[2],MyIpAddr[3]);
+  daDraw(state,id,cmd,FtpClient::activeClients,ip);
+  if(!daSleeping)myCprintf(60,1,0x08,"SESS %lu",SessionCounter);
 }
 
 

@@ -11,6 +11,7 @@ for p in S.rglob('*'):
   s=p.read_text(errors='strict')
   s=re.sub(r'(#\s*include\s*")([^"]+)(")',lambda m:m[1]+m[2].upper()+m[3],s)
   p.write_text(s)
+shutil.copyfile(R/'management/DASHBOARD.H', S/'APPS/FTPSRV/DASHBOARD.H')
 def run(args):subprocess.run(args,cwd=B,check=True)
 for name in ('packet','arp','dns','eth','ip','tcp','tcpsockm','utils','timer','trace','udp'):
  run(['wpp',str(S/'TCPLIB'/(name.upper()+'.CPP')),'-0','-ml','-s','-ei','-zp2','-dCFG_H="FTPSRV.CFG"','-i='+str(S/'TCPINC'),'-i='+str(S/'INCLUDE'),'-i='+str(S/'APPS/FTPSRV')])

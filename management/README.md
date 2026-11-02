@@ -71,3 +71,25 @@ subsequently recovered the SAME job and archived it without re-execution.
 Inventory now defaults to900 seconds, other jobs300; --timeout overrides both.
 Startup entry points NETFTP.BAT and NETMGR.BAT were updated only after acceptance;
 no reboot has been forced or claimed tested. Original FTPSRV remains in C:\NET.
+
+## Machine operations display
+
+FTPSRV now has a magenta/cyan LoC dashboard: link address, client/session counts,
+job ID/state/command, and a bar for the largest allocatable DOS memory block.
+This is not total free RAM or a guarantee of a child's memory availability.
+The log stays below the dashboard. The supervisor displays RUNNING and the
+launch command before handing DOS to a child; arbitrary programs can overwrite
+that screen, and no live refresh during a child is claimed. Last result is
+saved to C:\NET\JOBS\LAST.TXT and displayed after FTP returns.
+
+An integrated text-mode starfield starts after120 idle seconds with no active
+FTP clients. Keyboard input wakes it (the wake key is consumed); connecting
+clients or log activity also wake it. FTP processing continues during animation.
+The screen is restored exactly. Set DOSAGENT_IDLE in the DOS environment before
+starting the supervisor to choose0(disabled) through3600 seconds. No After Dark
+TSR, interrupt hooks, or resident animation are installed. Saver does not run
+inside arbitrary foreground jobs. `python tools/test_ui.py` tests the actual
+shared display code under DOSBox-X8086, including wake/restore/client inhibition.
+After replacing DOSAGENT.EXE, exit the server with no pending job and start
+C:\NET\NETFTP.BAT to load the new supervisor; uploading cannot change a resident
+parent executable. Original binaries are preserved under unique .BAK names.
