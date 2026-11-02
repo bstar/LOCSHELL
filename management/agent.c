@@ -17,7 +17,7 @@ static int execute(void) {
  fclose(f); kind[strcspn(kind,"\r\n")]=0;cwd[strcspn(cwd,"\r\n")]=0;prog[strcspn(prog,"\r\n")]=0;args[strcspn(args,"\r\n")]=0;
  out=open("OUTPUT.TXT",O_CREAT|O_TRUNC|O_WRONLY|O_BINARY,S_IREAD|S_IWRITE);if(out<0){state("failed-to-start\n");return -1;}
  if(!state("running\n")){close(out);return -1;}old0=dup(0);nul=open("NUL",O_RDONLY);dup2(nul,0);close(nul);old1=dup(1);old2=dup(2);dup2(out,1);dup2(out,2);close(out);
- {char id[20]="--";FILE *j=fopen("ID.TXT","r");if(j){fgets(id,sizeof(id),j);fclose(j);}daInit();daDraw("RUNNING (foreground)",id,prog,0,"FTP paused");}
+ {char id[20]="--";FILE *j=fopen("ID.TXT","r");if(j){fgets(id,sizeof(id),j);fclose(j);}daInit();daDraw("RUNNING (foreground)",id,prog,0,0,"FTP paused");}
  if(cwd[1]!=':'||_chdrive((cwd[0]&~32)-'A'+1)||chdir(cwd)){rc=-1;}
  else if(!strcmp(kind,"BAT")) { p=getenv("COMSPEC");rc=spawnl(P_WAIT,p?p:"C:\\COMMAND.COM",p?p:"COMMAND.COM","/C",prog,NULL); }
  else {v[0]=prog;p=strtok(args,"\t");while(p&&n<31){v[n++]=p;p=strtok(NULL,"\t");}v[n]=NULL;rc=spawnv(P_WAIT,prog,(const char * const *)v);}

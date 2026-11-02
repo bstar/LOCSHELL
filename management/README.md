@@ -98,8 +98,9 @@ The starfield now uses first-person x/z,y/z perspective, with a precomputed
 256-entry Q8 depth table and48 fixed stars. It uses integer arithmetic only,
 no per-frame division/allocation, and at most96 text-cell writes per frame
 (erase old positions, then draw new positions). Only entry clears the screen.
-Cadence is capped at one frame per2 BIOS ticks, without waiting or blocking
-network processing. There is no overlay text; the hardware cursor is hidden
+Frame pacing targets30fps using read-only8254 channel0 status/count latching,
+with mode2/mode3 handling; BIOS interrupt frequency is unchanged. Unsupported
+timer modes fall back to BIOS-tick pacing. No waits block network processing. There is no overlay text; the hardware cursor is hidden
 and restored on wake. Near stars brighten, accelerate outward and recycle.
 The projection follows the standard geometry demonstrated by the
 [raylib starfield example](https://github.com/raysan5/raylib/blob/master/examples/shapes/shapes_starfield_effect.c);
@@ -107,3 +108,27 @@ the DOS integer/text implementation is original and does not depend on raylib.
 Native tests exercise1000 frames, projected depth motion, bounds, text-free
 output, active-client wake, and exact dashboard restoration. These tests do
 not constitute a measured CPU-load benchmark on the physical PC.
+
+
+## Physical performance and flicker follow-up
+
+Header refresh now composes640 cells off-screen and writes only differences.
+Native tests verify an unchanged redraw makes zero screen writes, a session
+counter increment changes one cell, and shorter fields clear stale characters.
+Session counts are part of that composition, not a separate redraw/clear pass.
+
+On GREENTREE (16MHz386SX with coprocessor), projection benchmarks over1000
+48-star batches measured19 BIOS ticks for integer16 versus86 ticks for inline
+387 floating point. Integer16 remains the production path. Products fit signed
+16bits; the depth table replaces per-star division. FPU support is an explicit
+benchmark option DA_FPU_PROJECTION, not a requirement for the shipped server.
+A complete1000-frame sparse-VRAM render benchmark measured29 BIOS ticks
+(~1.6seconds). A timed run produced148 frames over91 BIOS ticks (~5seconds;
+the coarse start/end window limits rate precision). This supports the30fps
+target, not a guarantee during arbitrary hardware stalls. Timer read-back
+support was verified on this physical PC. Dashboard metadata/disk polling is
+skipped entirely while the saver sleeps. No per-frame text overlays or cursor.
+Benchmark sources: tools/star_bench.c (integer or -fpi87 -fp3
+-dDA_FPU_PROJECTION; latter requires a387) and tools/star_render_bench.c.
+The new FTPSRV was activated automatically via job J8C46033 after upload;
+no manual restart is needed for the starfield/header updates.

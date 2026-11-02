@@ -4183,14 +4183,14 @@ mTCP FTPSrv: Total Connections: 00000  Active Sessions: 00
 */
 
 void redrawStatusLine( void ) {
+  if(daSleeping)return;
   char state[40]="READY",id[20]="--",cmd[128]="Awaiting workstation jobs",ip[24];FILE *f;
   f=fopen("C:\\NET\\JOBS\\LOCK\\STATE.TXT","r");
   if(f){fgets(state,sizeof(state),f);fclose(f);f=fopen("C:\\NET\\JOBS\\LOCK\\ID.TXT","r");if(f){fgets(id,sizeof(id),f);fclose(f);}f=fopen("C:\\NET\\JOBS\\LOCK\\REQUEST.TXT","r");if(f){char skip[128];fgets(skip,sizeof(skip),f);fgets(skip,sizeof(skip),f);fgets(cmd,sizeof(cmd),f);fclose(f);}}
   else {f=fopen("C:\\NET\\JOBS\\LAST.TXT","r");if(f){fgets(id,sizeof(id),f);fgets(state,sizeof(state),f);fgets(cmd,sizeof(cmd),f);fclose(f);}}
   state[strcspn(state,"\r\n")]=0;id[strcspn(id,"\r\n")]=0;cmd[strcspn(cmd,"\r\n")]=0;
   sprintf(ip,"%u.%u.%u.%u",MyIpAddr[0],MyIpAddr[1],MyIpAddr[2],MyIpAddr[3]);
-  daDraw(state,id,cmd,FtpClient::activeClients,ip);
-  if(!daSleeping)myCprintf(60,1,0x08,"SESS %lu",SessionCounter);
+  daDraw(state,id,cmd,FtpClient::activeClients,SessionCounter,ip);
 }
 
 

@@ -2,11 +2,17 @@
 #ifndef LOC_DASHBOARD_H
 #define LOC_DASHBOARD_H
 #include <dos.h>
+#include <conio.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 static unsigned short far *daVideo;
 static unsigned short daSaved[4000];
+/* Compose the complete header off-screen, then commit only changed cells. */
+static unsigned short daHeader[640];
+static unsigned daHeaderWrites=0;
+static int daComposing=0;
+static void daCell(unsigned pos,unsigned short value){if(daComposing)daHeader[pos]=value;else daVideo[pos]=value;}
 static unsigned daRows=25, daCols=80;
 static unsigned long daIdle=0,daFrame=0,daTimeout=120,daTimeoutTicks=2184;
 static int daSleeping=0;
@@ -15,6 +21,19 @@ static int daX[DA_STARS],daY[DA_STARS];
 static unsigned char daZ[DA_STARS];
 static int daPos[DA_STARS];
 static unsigned daRandom=173,daCursor=0;
+static unsigned daPitLast=0;
+static unsigned long daPitBudget=0;
+static unsigned long daRendered=0;
+static int daPitReady=0;
+/* 8254 read-back latches channel0 status and count, without reprogramming it.
+   Mode3 needs OUT to distinguish its two half-cycles. */
+static int daPitRead(unsigned *phase){unsigned status,count;outp(0x43,0xc2);
+ status=inp(0x40);count=inp(0x40);count|=(unsigned)inp(0x40)<<8;
+ if((status&0x30)!=0x30)return 0;
+ if((status&14)==6)*phase=(unsigned)(((unsigned)(0-count)>>1)+((status&128)?0:32768u));
+ else if((status&14)==4)*phase=(unsigned)(0-count);else return 0;
+ return 1;}
+
 /* Q8 perspective scale: 32 world units focal length, no division per frame.
    Same x/z,y/z geometry as standard starfield demos; original DOS implementation.
    Reference: raylib/examples/shapes/shapes_starfield_effect.c (not copied). */
@@ -37,15 +56,23 @@ static const unsigned daScale[256]={
  34,33,33,33,33,33,33,33,33,32,32,32,32,32,32,32
 };
 static unsigned daRand(void){daRandom=daRandom*25173u+13849u;return daRandom>>8;}
-static void daResetStar(unsigned i,unsigned depth){daX[i]=(int)daRand()-128;daY[i]=(int)daRand()-128;daZ[i]=(unsigned char)depth;}
-static int daProject(unsigned i){int x=40+(int)(((long)daX[i]*daScale[daZ[i]])>>8);
- int y=(int)(daRows/2)+(int)(((long)daY[i]*daScale[daZ[i]])>>9);
+static void daResetStar(unsigned i,unsigned depth){daX[i]=(int)(daRand()&127)-64;daY[i]=(int)(daRand()&127)-64;daZ[i]=(unsigned char)depth;}
+static int daProject(unsigned i){int x,y;
+#ifdef DA_FPU_PROJECTION
+ x=40+(int)((float)daX[i]*64.0f/(float)daZ[i]);
+ y=(int)(daRows/2)+(int)((float)daY[i]*32.0f/(float)daZ[i]);
+#else
+ /* Products fit signed16 bits, including -64*512. No 32-bit helpers. */
+ x=40+((daX[i]*(int)daScale[daZ[i]])>>7);
+ y=(int)(daRows/2)+((daY[i]*(int)daScale[daZ[i]])>>8);
+#endif
  return x>=0&&x<80&&y>=0&&y<(int)daRows?y*80+x:-1;}
+
 
 static unsigned long daNow(void){return *((unsigned long far *)MK_FP(0x40,0x6c));}
 static unsigned long daElapsed(unsigned long a,unsigned long b){return a>=b?a-b:0x1800b0UL-b+a;}
-static void daText(int x,int y,int attr,const char *s){while(*s&&x<(int)daCols){daVideo[y*daCols+x++]=(attr<<8)|(unsigned char)*s++;}}
-static void daLine(int row,int attr,int ch){unsigned x;for(x=0;x<daCols;x++)daVideo[row*daCols+x]=(attr<<8)|ch;}
+static void daText(int x,int y,int attr,const char *s){while(*s&&x<(int)daCols){daCell(y*daCols+x++,(attr<<8)|(unsigned char)*s++);}}
+static void daLine(int row,int attr,int ch){unsigned x;for(x=0;x<daCols;x++)daCell(row*daCols+x,(attr<<8)|ch);}
 static void daInit(void){unsigned mode=*((unsigned char far *)MK_FP(0x40,0x49));char *e=getenv("DOSAGENT_IDLE");
  daCols=*((unsigned short far *)MK_FP(0x40,0x4a));daRows=*((unsigned char far *)MK_FP(0x40,0x84))+1;
  if(daCols!=80||daRows<25||daRows>50){daCols=80;daRows=25;}
@@ -55,21 +82,25 @@ static void daInit(void){unsigned mode=*((unsigned char far *)MK_FP(0x40,0x49));
 }
 static void daWake(void){unsigned i;union REGS r;if(!daSleeping)return;for(i=0;i<daCols*daRows;i++)daVideo[i]=daSaved[i];r.h.ah=1;r.x.cx=daCursor;int86(0x10,&r,&r);daSleeping=0;daIdle=daNow();}
 static int daKey(void){int was=daSleeping;daWake();daIdle=daNow();return was;}
-static void daDraw(const char *state,const char *id,const char *command,unsigned clients,const char *ip){
+static void daDraw(const char *state,const char *id,const char *command,unsigned clients,unsigned long sessions,const char *ip){
  unsigned maxblock=0,i,lit;char b[100];union REGS r;
  if(daSleeping)return;
+ daComposing=1;
  for(i=0;i<8;i++)daLine(i,i==0?0x5f:0x07,' ');
  daText(2,0,0x5f,"LoSs oF CoNtRoL  //  MACHINE OPERATIONS");
  daText(2,1,0x0b,"[ DOSAGENT ]");daText(18,1,0x0f,"JOB CONTROL / FILE LINK");
+ sprintf(b,"SESS %lu",sessions);daText(60,1,0x08,b);
  sprintf(b,"LINK %-15.15s   CLIENTS %u",ip,clients);daText(2,2,0x0b,b);
  sprintf(b,"STATE %-20.20s JOB %.12s",state,id);daText(2,3,0x0f,b);
  daText(2,4,0x07,"TASK  ");daText(8,4,0x0d,command);
  _dos_allocmem(0xffff,&maxblock);r.h.ah=0;int86(0x12,&r,&r);
  lit=r.x.ax?(unsigned)(((unsigned long)maxblock*16UL*24UL)/((unsigned long)r.x.ax*1024UL)):0;if(lit>24)lit=24;
- daText(2,5,0x07,"FREE DOS BLOCK [");for(i=0;i<24;i++)daVideo[5*80+18+i]=((i<lit?0x0a:0x08)<<8)|(i<lit?219:176);
+ daText(2,5,0x07,"FREE DOS BLOCK [");for(i=0;i<24;i++)daCell(5*80+18+i,((i<lit?0x0a:0x08)<<8)|(i<lit?219:176));
  sprintf(b,"] %lu KB",(unsigned long)maxblock/64UL);daText(42,5,0x0f,b);
  sprintf(b,"Alt-H Help  Alt-X Exit  |  Idle stars: %lu s",daTimeout);daText(2,6,0x08,b);
  daLine(7,0x05,196);
+ daComposing=0;daHeaderWrites=0;
+ for(i=0;i<640;i++)if(daVideo[i]!=daHeader[i]){daVideo[i]=daHeader[i];daHeaderWrites++;}
 }
 static void daPoll(int active){unsigned long now=daNow();unsigned i;
  if(active){daWake();daIdle=now;return;}
@@ -79,9 +110,15 @@ static void daPoll(int active){unsigned long now=daNow();unsigned i;
   for(i=0;i<daRows;i++)daLine(i,0,' ');
   {union REGS r;r.h.ah=3;r.h.bh=0;int86(0x10,&r,&r);daCursor=r.x.cx;r.h.ah=1;r.x.cx=0x2000;int86(0x10,&r,&r);}
   for(i=0;i<DA_STARS;i++){daResetStar(i,16+((daRand()*240u)>>8));daPos[i]=-1;}
-  daSleeping=1;daFrame=now;
+  daSleeping=1;daFrame=now;daPitBudget=0;daPitReady=daPitRead(&daPitLast);
  }
- if(!daSleeping||daElapsed(now,daFrame)<2)return;daFrame=now;
+ if(!daSleeping)return;
+ if(daPitReady){unsigned phase,delta;if(!daPitRead(&phase)){daPitReady=0;return;}
+  delta=phase-daPitLast;daPitLast=phase;daPitBudget+=delta;
+  if(daPitBudget<39773UL)return;daPitBudget-=39773UL;
+  if(daPitBudget>39773UL)daPitBudget=0;
+ }else {if(daElapsed(now,daFrame)<1)return;}
+ daFrame=now;daRendered++;
  /* Erase only previous stars, then redraw. At most 96 text-cell writes/frame.
     Erase all first so overlaps cannot erase another star's current position. */
  for(i=0;i<DA_STARS;i++)if(daPos[i]>=0)daVideo[daPos[i]]=0x0020;
