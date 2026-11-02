@@ -54,10 +54,17 @@ def main():
   if a.cmd in ('status','result'):
    if not (a.job=='LOCK' or (len(a.job)==8 and a.job.startswith('J') and all(x in '0123456789ABCDEF' for x in a.job[1:]))):raise ValueError('Invalid job ID')
    path=ROOT+'/'+a.job
-   if a.job=='LOCK':print('Job:',read(f,path+'/ID.TXT').decode().strip())
+   job=read(f,path+'/ID.TXT').decode().strip() if a.job=='LOCK' else a.job
+   if a.job=='LOCK':print('Job:',job)
+   complete=True
    for n in (['STATE.TXT'] if a.cmd=='status' else ['STATE.TXT','RESULT.TXT','OUTPUT.TXT']):
     try:print(read(f,path+'/'+n).decode('cp437'),end='')
-    except ftplib.error_perm:print(n+': unavailable')
+    except ftplib.error_perm:print(n+': unavailable');complete=False
+   if a.cmd=='result' and a.job=='LOCK' and complete:
+    state=read(f,path+'/STATE.TXT').decode().strip()
+    if state in ('completed','failed-to-start','interrupted'):
+     if len(job)!=8 or job[0]!='J' or any(x not in '0123456789ABCDEF' for x in job[1:]):raise ValueError('Invalid archived job ID')
+     f.rename(path,ROOT+'/'+job)
    return
   if 'QUIT' not in f.sendcmd('SITE HELP').split():raise RuntimeError('Start C:\\NET\\AGENT\\START.BAT locally first; current server lacks SITE QUIT')
   kind='BAT' if a.cmd in ('run','inventory') else 'EXE'

@@ -44,8 +44,8 @@ uploads and verifies payload/request, then atomically renames READY.NEW to READY
 Only afterward does it request SITE QUIT. The supervisor claims READY before
 execution and never replays claimed work. Returning execution saves STATE.TXT,
 RESULT.TXT and OUTPUT.TXT. On retrieval the CLI archives LOCK to its job ID,
-releasing the submission slot. If a client dies, inspect `result` before manually
-renaming the completed LOCK directory to its ID over FTP. Never clear a queued or
+releasing the submission slot. If a client dies, `dosctl result` retrieves the completed result and archives
+LOCK to its ID, freeing the slot. Incomplete results retain LOCK for inspection. Never clear a queued or
 running job merely to retry submission.
 
 A CLI timeout does not cancel work. A hung program may require local recovery.
