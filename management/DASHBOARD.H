@@ -17,6 +17,29 @@ static void daCell(unsigned pos,unsigned short value){if(daComposing)daHeader[po
 static unsigned daRows=25, daCols=80;
 static unsigned long daIdle=0,daFrame=0,daTimeout=120,daTimeoutTicks=2184;
 static int daSleeping=0;
+/* The environment overrides the saved screensaver choice. */
+static unsigned daSaver=0;
+static int daPreviewPending=0;
+static int daPreviewChoice=-1,daPreviewRestore=-1;
+#ifdef DA_ISLAND_SAVER
+#include "ISLANDSAV.H"
+#define DA_SAVER_COUNT 3
+#define DA_SAVER_OFF 2
+#ifndef DA_ISLAND_DIRECTORY
+#define DA_ISLAND_DIRECTORY "C:\\ISLAND"
+#endif
+static int daIsland=0;
+static const char *daSaverNames[DA_SAVER_COUNT]={"Starfield","Island","Off"};
+static const char *daSaverKeys[DA_SAVER_COUNT]={"stars","island","off"};
+#else
+#define DA_SAVER_COUNT 2
+#define DA_SAVER_OFF 1
+static const char *daSaverNames[DA_SAVER_COUNT]={"Starfield","Off"};
+static const char *daSaverKeys[DA_SAVER_COUNT]={"stars","off"};
+#endif
+#ifndef DA_SAVER_CONFIG
+#define DA_SAVER_CONFIG "C:\\NET\\AGENT\\SAVER.CFG"
+#endif
 #ifdef DA_GRAPHICS_SAVER
 #define DA_STARS 96
 static int daGraphics=0;
@@ -61,7 +84,7 @@ static void daGraphicsLeave(void){union REGS r;struct SREGS seg;
 static int daX[DA_STARS],daY[DA_STARS];
 static unsigned char daZ[DA_STARS];
 static unsigned daPos[DA_STARS];
-static unsigned daRandom=173,daCursor=0;
+static unsigned daRandom=173,daCursor=0,daCursorPos=0;
 static unsigned daPitLast=0;
 static unsigned long daPitBudget=0;
 static unsigned long daRendered=0;
@@ -124,14 +147,40 @@ static void daInit(void){unsigned mode=*((unsigned char far *)MK_FP(0x40,0x49));
  daVideo=(unsigned short far *)MK_FP(mode==7?0xb000:0xb800,0);daIdle=daNow();
  if(e){long v=atol(e);if(v>=0&&v<=3600)daTimeout=(unsigned long)v;}
  daTimeoutTicks=daTimeout*182UL/10UL;
+ {char choice[32]="";unsigned i;FILE *f=fopen(DA_SAVER_CONFIG,"r");
+  if(f){fgets(choice,sizeof(choice),f);fclose(f);choice[strcspn(choice,"\r\n")]=0;}
+  e=getenv("DOSAGENT_SAVER");if(e){strncpy(choice,e,sizeof(choice)-1);choice[sizeof(choice)-1]=0;}
+  daSaver=0;for(i=0;i<DA_SAVER_COUNT;i++)if(!stricmp(choice,daSaverKeys[i]))daSaver=i;
+ }
 }
 static void daWake(void){unsigned i;union REGS r;if(!daSleeping)return;
+#ifdef DA_ISLAND_SAVER
+ if(daIsland){isEnd();daIsland=0;}
+#endif
 #ifdef DA_GRAPHICS_SAVER
  if(daGraphics)daGraphicsLeave();
 #endif
- for(i=0;i<daCols*daRows;i++)daVideo[i]=daSaved[i];r.h.ah=1;r.x.cx=daCursor;int86(0x10,&r,&r);daSleeping=0;daIdle=daNow();}
+ for(i=0;i<daCols*daRows;i++)daVideo[i]=daSaved[i];
+ r.h.ah=1;r.x.cx=daCursor;int86(0x10,&r,&r);
+ r.h.ah=2;r.h.bh=0;r.x.dx=daCursorPos;int86(0x10,&r,&r);daSleeping=0;daIdle=daNow();
+ if(daPreviewRestore>=0){daSaver=daPreviewRestore;daPreviewRestore=-1;}
+}
 static int daActivity(void){int was=daSleeping;daWake();daIdle=daNow();return was;}
 static int daKey(void){return daActivity();}
+static int daHandleKey(unsigned key){
+#ifdef DA_ISLAND_SAVER
+ if(daIsland && isKey(key))return 1;
+#else
+ (void)key;
+#endif
+ return daKey();
+}
+static int daSelectSaver(void){unsigned next=(daSaver+1)%DA_SAVER_COUNT;int ok;FILE *f;
+ daActivity();f=fopen(DA_SAVER_CONFIG,"w");if(!f)return 0;
+ ok=fprintf(f,"%s\n",daSaverKeys[next])>=0;if(fclose(f))ok=0;
+ if(ok)daSaver=next;return ok;
+}
+static void daPreview(void){daActivity();if(daTimeout&&daSaver!=DA_SAVER_OFF)daIdle=daNow()-daTimeoutTicks;}
 static void daDraw(const char *state,const char *id,const char *command,unsigned clients,unsigned long sessions,const char *ip){
  unsigned maxblock=0,i,lit;char b[100];union REGS r;
  if(daSleeping)return;
@@ -147,26 +196,42 @@ static void daDraw(const char *state,const char *id,const char *command,unsigned
  lit=r.x.ax?(unsigned)(((unsigned long)maxblock*16UL*24UL)/((unsigned long)r.x.ax*1024UL)):0;if(lit>24)lit=24;
  daText(2,5,0x07,"FREE DOS BLOCK [");for(i=0;i<24;i++)daCell(5*80+18+i,((i<lit?0x0a:0x08)<<8)|(i<lit?219:176));
  sprintf(b,"] %lu KB",(unsigned long)maxblock/64UL);daText(42,5,0x0f,b);
- sprintf(b,"Alt-H Help  Alt-X Exit  |  Idle stars: %lu s",daTimeout);daText(2,6,0x08,b);
+ sprintf(b,"Alt-V Saver: %s | Alt-P Preview | Idle: %lu s",daSaverNames[daSaver],daTimeout);daText(2,6,0x08,b);
  daLine(7,0x05,196);
  daComposing=0;daHeaderWrites=0;
  for(i=0;i<640;i++)if(daVideo[i]!=daHeader[i]){daVideo[i]=daHeader[i];daHeaderWrites++;}
 }
 static void daPoll(int active){unsigned long now=daNow();unsigned i;
  if(active){daActivity();return;}
- if(!daTimeout)return;
+ if(!daTimeout){daPreviewPending=0;return;}
+ if(daPreviewPending){daPreviewPending=0;
+  if(daPreviewChoice>=0){daPreviewRestore=daSaver;daSaver=daPreviewChoice;daPreviewChoice=-1;}
+  daPreview();
+ }
+ if(daSaver==DA_SAVER_OFF)return;
  if(!daSleeping&&daElapsed(now,daIdle)>=daTimeoutTicks){
   for(i=0;i<daCols*daRows;i++)daSaved[i]=daVideo[i];
+  /* Capture the text cursor before a VGA mode switch replaces BIOS state. */
+  {union REGS r;r.h.ah=3;r.h.bh=0;int86(0x10,&r,&r);daCursor=r.x.cx;daCursorPos=r.x.dx;}
   #ifdef DA_GRAPHICS_SAVER
   daGraphics=daGraphicsEnter();
+#ifdef DA_ISLAND_SAVER
+  daIsland=0;
+  if(daGraphics && daSaver==1)daIsland=isBegin(DA_ISLAND_DIRECTORY);
+#endif
   if(!daGraphics)
 #endif
   for(i=0;i<daRows;i++)daLine(i,0,' ');
-  {union REGS r;r.h.ah=3;r.h.bh=0;int86(0x10,&r,&r);daCursor=r.x.cx;r.h.ah=1;r.x.cx=0x2000;int86(0x10,&r,&r);}
+  {union REGS r;r.h.ah=1;r.x.cx=0x2000;int86(0x10,&r,&r);}
   for(i=0;i<DA_STARS;i++){daResetStar(i,16+((daRand()*240u)>>8));daPos[i]=-1;}
   daSleeping=1;daFrame=now;daPitBudget=0;daPitReady=daPitRead(&daPitLast);
  }
  if(!daSleeping)return;
+#ifdef DA_GRAPHICS_SAVER
+#ifdef DA_ISLAND_SAVER
+ if(daIsland){isStep();return;}
+#endif
+#endif
  if(daPitReady){unsigned phase,delta;if(!daPitRead(&phase)){daPitReady=0;return;}
   delta=phase-daPitLast;daPitLast=phase;daPitBudget+=delta;
   if(daPitBudget<39773UL)return;daPitBudget-=39773UL;

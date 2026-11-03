@@ -2,6 +2,7 @@
  * handoff/capabilities, dashboard integration and idle/event display behavior.
  * Original mTCP attribution and license follow unchanged; see NOTICE.md. */
 #define DA_GRAPHICS_SAVER
+#define DA_ISLAND_SAVER
 #include "DASHBOARD.H"
 /*
 
@@ -521,7 +522,7 @@ int main( int argc, char *argv[] ) {
     // - Read keyboard input
     // - Redraw the status line
 
-    if ( Timer_diff( lastKeyboardCheck, TIMER_GET_CURRENT( ) ) > TIMER_MS_TO_TICKS( 1000 ) ) {
+    if ( (daSleeping && biosIsKeyReady()) || Timer_diff( lastKeyboardCheck, TIMER_GET_CURRENT( ) ) > TIMER_MS_TO_TICKS( 1000 ) ) {
 
       redrawStatusLine( );
 
@@ -544,7 +545,7 @@ int main( int argc, char *argv[] ) {
           if ( biosIsKeyReady( ) ) {
 
             uint16_t key = biosKeyRead( );
-            if(daKey()) continue;
+            if(daHandleKey(key)) continue;
 
             if ( (key & 0xff) == 0 ) {
 
@@ -560,6 +561,13 @@ int main( int argc, char *argv[] ) {
               }
               else if ( key == 31 ) {   // Alt-S, Help
                 doConsoleStats( );
+              }
+              else if ( key == 47 ) {   // Alt-V, saved screensaver choice
+                if (!daSelectSaver()) addToScreen(0, "Unable to save screensaver setting\n");
+                redrawStatusLine();
+              }
+              else if ( key == 25 ) {   // Alt-P, preview selected saver
+                daPreview();
               }
               else if ( key == 35 ) {   // Alt-H, Help
                 doConsoleHelp( );
@@ -1401,7 +1409,31 @@ void doSite( FtpClient *client, char *nextTokenPtr ) {
   char siteCmd[ 10 ];
   nextTokenPtr = Utils::getNextToken( nextTokenPtr, siteCmd, 10 );
 
-  if ( stricmp( siteCmd, "agent" ) == 0 ) { client->addToOutput("211 DOSCTL protocol=2 ftp=2 jobs=1 labels=1" _NL_); }
+  if ( stricmp( siteCmd, "agent" ) == 0 ) { client->addToOutput("211 DOSCTL protocol=2 ftp=2 jobs=1 labels=1 savers=1 island=1 scenes=1" _NL_); }
+  else if ( stricmp( siteCmd, "saver" ) == 0 ) {
+    char action[12]; nextTokenPtr=Utils::getNextToken(nextTokenPtr, action, sizeof(action));
+    if (!stricmp(action, "preview")) {
+      if (!client->user.hasPermission(FtpUser::cmd_SITEQUIT)) {
+        client->addToOutput(Msg_550_Permission_Denied); return;
+      }
+      char choice[16];unsigned kind=daSaver,i;
+      Utils::getNextToken(nextTokenPtr,choice,sizeof(choice));
+      if(*choice){
+        for(i=0;i<DA_SAVER_COUNT;i++)if(!stricmp(choice,daSaverKeys[i]))break;
+        if(i==DA_SAVER_COUNT){client->addToOutput("501 Unknown saver" _NL_);return;}
+        kind=i;
+      }
+      if (!daTimeout || kind==DA_SAVER_OFF) {
+        client->addToOutput("550 Saver disabled" _NL_); return;
+      }
+      daPreviewChoice=*choice ? (int)kind : -1;
+      daPreviewPending=1;
+      client->addToOutput("211 Preview queued until clients disconnect" _NL_);
+    } else if (!*action) {
+      client->addToOutput_var("211 SAVER selected=%s island_frames=%lu island_ticks=%lu island_error=%u island_adlib=%u island_fault=%u island_volume=%u" _NL_,
+        daSaverKeys[daSaver],isFrames,isSceneTicks,isError,isAdlib,isFault,isGetVolume());
+    } else client->addToOutput("501 Use SITE SAVER [PREVIEW [name]]" _NL_);
+  }
   else if ( stricmp( siteCmd, "stats" ) == 0 ) {
     doSiteStats( client );
   }
@@ -1409,7 +1441,7 @@ void doSite( FtpClient *client, char *nextTokenPtr ) {
     doSiteWho( client );
   }
   else if ( stricmp( siteCmd, "help" ) == 0 ) {
-    client->addToOutput( "211 Site commands: HELP DISKFREE QUIT STATS WHO AGENT" _NL_ );
+    client->addToOutput( "211 Site commands: HELP DISKFREE QUIT STATS WHO AGENT SAVER" _NL_ );
   }
   else if ( stricmp( siteCmd, "diskfree" ) == 0 ) {
     doSiteDiskFree( client, nextTokenPtr );
@@ -4256,6 +4288,7 @@ void doConsoleHelp( void ) {
   
   addToScreen( 0, "\n%s  %s", CopyrightMsg1, CopyrightMsg2 );
   addToScreen( 0, "Alt B: Toggle beeper   Alt-S: Stats   Alt-U: Users   Alt-X: Exit\n" );
+  addToScreen( 0, "Alt-V: Cycle/save saver   Alt-P: Preview (no connected clients)\n" );
   showRealIpAddr( 0 );
   addToScreen( 0, "\n" );
 }
