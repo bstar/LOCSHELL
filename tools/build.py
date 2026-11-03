@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from pathlib import Path
-import subprocess,shutil,re
+import subprocess,shutil,re,os
 R=Path(__file__).resolve().parents[1]; B=R/'build'; B.mkdir(exist_ok=True)
 
 for obj in list(B.glob('*.o')) + list(B.glob('*.obj')): obj.unlink()
@@ -12,12 +12,19 @@ for p in S.rglob('*'):
   s=re.sub(r'(#\s*include\s*")([^"]+)(")',lambda m:m[1]+m[2].upper()+m[3],s)
   p.write_text(s)
 shutil.copyfile(R/'management/DASHBOARD.H', S/'APPS/FTPSRV/DASHBOARD.H')
+shutil.copyfile(R/'management/ISLANDSAV.H', S/'APPS/FTPSRV/ISLANDSAV.H')
+SCENE=Path(os.environ.get('DOS_SCENES_SOURCE',R/'third_party/dos-scenes/src'))
+if not (SCENE/'runtime.c').is_file():
+ raise SystemExit('Initialize the dos-scenes submodule or set DOS_SCENES_SOURCE to its src directory.')
+shutil.copyfile(SCENE/'dos_scenes.h', S/'APPS/FTPSRV/DOSSCENE.H')
+shutil.copyfile(SCENE/'dos_scenes.h', B/'DOSSCENE.H')
 def run(args):subprocess.run(args,cwd=B,check=True)
 for name in ('packet','arp','dns','eth','ip','tcp','tcpsockm','utils','timer','trace','udp'):
  run(['wpp',str(S/'TCPLIB'/(name.upper()+'.CPP')),'-0','-ml','-s','-ei','-zp2','-dCFG_H="FTPSRV.CFG"','-i='+str(S/'TCPINC'),'-i='+str(S/'INCLUDE'),'-i='+str(S/'APPS/FTPSRV')])
 run(['wasm','-0','-ml',str(S/'TCPLIB/IPASM.ASM')])
 for name in ('FTPSRV','FTPCL','FTPUSR'):
  run(['wpp',str(S/'APPS/FTPSRV'/(name+'.CPP')),'-0','-ml','-s','-ei','-zp2','-dCFG_H="FTPSRV.CFG"','-i='+str(S/'TCPINC'),'-i='+str(S/'INCLUDE')])
+run(['wcc','-q','-0','-ml','-os','-s','-dDOS_SCENES_EMBEDDED','-fo=island.o',str(SCENE/'runtime.c')])
 run(['wlink','system','dos','option','map','option','eliminate','option','stack=4096','name','FTPSRV.EXE','file',','.join(p.name for p in B.glob('*.o'))])
 run(['wcl','-q','-bt=dos','-0','-ms','-os','-fe=DOSAGENT.EXE',str(R/'management/agent.c')])
 
