@@ -99,5 +99,5 @@ TSR are provided separately by dos-scenes. No DOS installer is added.
 
 The host remains GPL-3.0-or-later. The runtime's MIT license is retained in its
 submodule. Third-party island art and music are not included: see the upstream
-[island credits](https://github.com/bstar/dos-scenes/blob/feat/scene-runtime-and-tsr/scenes/island/CREDITS.md)
+[island credits](https://github.com/bstar/dos-scenes/blob/c4e92fc/scenes/island/CREDITS.md)
 and extraction instructions before preparing a local pack.
