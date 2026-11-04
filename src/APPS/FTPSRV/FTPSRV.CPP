@@ -1430,8 +1430,8 @@ void doSite( FtpClient *client, char *nextTokenPtr ) {
       daPreviewPending=1;
       client->addToOutput("211 Preview queued until clients disconnect" _NL_);
     } else if (!*action) {
-      client->addToOutput_var("211 SAVER selected=%s island_frames=%lu island_ticks=%lu island_error=%u island_adlib=%u island_fault=%u island_volume=%u" _NL_,
-        daSaverKeys[daSaver],isFrames,isSceneTicks,isError,isAdlib,isFault,isGetVolume());
+      client->addToOutput_var("211 SAVER selected=%s island_frames=%lu island_ticks=%lu island_error=%u island_adlib=%u island_fault=%u island_volume=%u island_twinkles=%u" _NL_,
+        daSaverKeys[daSaver],isFrames,isSceneTicks,isError,isAdlib,isFault,isGetVolume(),dsTwinkles);
     } else client->addToOutput("501 Use SITE SAVER [PREVIEW [name]]" _NL_);
   }
   else if ( stricmp( siteCmd, "stats" ) == 0 ) {

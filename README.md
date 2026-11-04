@@ -82,22 +82,24 @@ During scene playback, `+` / `-` adjust and remember the AdLib level in the pack
 dashboard. A connected FTP client wakes it immediately. Authenticated clients
 with SITE QUIT permission may queue `SITE SAVER PREVIEW island`; it starts after
 all clients disconnect and preserves the saved selection. `SITE SAVER` reports
-runtime counters, errors, sound-card detection and volume.
+runtime counters, errors, sound-card detection, volume and the loaded twinkle
+record count.
 
-Build and exercise the real DOS integration with only redistributable assets:
+Build and exercise the real DOS integration with the bundled scene assets:
 
 ```sh
 nix develop path:./nix --command python tools/build.py
 nix develop path:./nix --command python tools/test_island.py
 ```
 
-The test covers repeated activation, keyboard and FTP wake, text/font/palette/
+The test uses the bundled island artwork, music and twinkles. It covers repeated activation, keyboard and FTP wake, text/font/palette/
 cursor/IRQ restoration, saved selection, missing assets and every rendered
 pixel. It runs as a 386 without an FPU, with 160KB of memory reserved. NETFTP
 remains a foreground application; the independent player and optional resident
 TSR are provided separately by dos-scenes. No DOS installer is added.
 
 The host remains GPL-3.0-or-later. The runtime's MIT license is retained in its
-submodule. Third-party island art and music are not included: see the upstream
-[island credits](https://github.com/bstar/dos-scenes/blob/c4e92fc/scenes/island/CREDITS.md)
-and extraction instructions before preparing a local pack.
+submodule. The bundled island pack retains its original [artwork, concept and music
+credits](https://github.com/bstar/dos-scenes/blob/main/scenes/island/CREDITS.md).
+Build it with `python third_party/dos-scenes/tools/pack_island.py` and copy the
+resulting scene files into `C:\ISLAND`, preserving existing volume settings.
