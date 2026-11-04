@@ -21,7 +21,7 @@ static void restored(void) {
 }
 static void enter(void) {
  daSaver=1;daTimeout=1;daTimeoutTicks=18;daIdle=daNow()-40;
- daPoll(0);assert(daSleeping && daIsland && !isError);
+ daPoll(0);assert(daSleeping && daIsland && !isError && dsTwinkles>0);
 }
 int main(void) {
  unsigned i,round,plane;unsigned long start;union REGS r;FILE *f;

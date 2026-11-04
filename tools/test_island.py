@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Test NETFTP embedding with the original, distributable dos-scenes demo."""
+"""Test NETFTP embedding with the bundled island scene and twinkles."""
 from pathlib import Path
 import os,subprocess,shutil,sys
 R=Path(__file__).resolve().parents[1];B=R/'build';S=R/'third_party/dos-scenes'
 shutil.rmtree(B/'ISLAND',ignore_errors=True)
-subprocess.run([sys.executable,str(S/'tools/make_demo.py'),'--output',str(B/'ISLAND')],check=True)
+subprocess.run([sys.executable,str(S/'tools/pack_island.py'),'--output',str(B/'ISLAND')],check=True)
 subprocess.run(['wcl','-q','-bt=dos','-0','-ml','-i='+str(B),'-fe='+str(B/'ISLTEST.EXE'),str(R/'tools/island_test.c'),str(B/'island.o')],cwd=B,check=True)
 (B/'ISLPASS.TXT').unlink(missing_ok=True)
 cfg=B/'island-test.conf';cfg.write_text(f'[sdl]\noutput=surface\n[cpu]\ncore=normal\ncputype=386\nfpu=false\ncycles=fixed 3000\n[sblaster]\nsbtype=none\noplmode=opl2\n[autoexec]\nmount c {B}\nc:\nISLTEST.EXE\nexit\n')
