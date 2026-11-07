@@ -104,6 +104,7 @@ class FtpClient {
     uint8_t          activeConnect;
 
     uint8_t          noMoreData;
+    uint32_t         observedBytes,observedTotal,sessionTicks;
     uint16_t         bytesSent;
     uint16_t         fileBufferIndex;
     uint16_t         bytesRead;

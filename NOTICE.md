@@ -19,10 +19,13 @@ marked GPL-3.0-or-later retain that designation; upstream notices are not relice
 
 ## Changes made in this fork
 
-Fork work began on 2026-11-01. The modified upstream file is
-`src/APPS/FTPSRV/FTPSRV.CPP`: job handoff, management capability reporting,
-LoC dashboard integration, event wake and idle display behavior. Its original
-copyright and GPL notices remain intact.
+Fork work began on 2026-11-01. Modified upstream files include
+`src/APPS/FTPSRV/FTPSRV.CPP`, `FTPCL.CPP` and `FTPCL.H`: job handoff,
+management capabilities, integrated LOC SHELL, transfer accounting, file-change
+events and display behavior. The session timing and transfer observations were
+added by this fork in November 2026. Original copyright and GPL notices remain
+intact. The authored frontend, launch helpers and memory observer are under
+`locshell/`; its private installation catalogue and observations are not shipped.
 
 The `management/` directory adds the DOS foreground supervisor, identity and
 inventory helper, host-side dosctl controller, scan flows, deployment journals,
@@ -46,3 +49,8 @@ work. Binary releases must meet the GPL's corresponding-source requirements;
 include the source for the exact release, its changes, and the scripts required
 to build it. Private deployment recipes, credentials, machine configuration and
 inventories are not part of the public distribution.
+
+The compact cloud/XMS music patch retains the MIT dos-scenes runtime notices.
+The corrected Watcom heap-walk source and its Sybase Open Watcom Public License
+are retained under `third_party/watcom-heap/`. See both dependencies for their
+authors and terms.

@@ -416,6 +416,38 @@ static char ConfirmEndMsg[] = "Press Ctrl-C or Alt-X one more time to shut down 
 static char CopyrightMsg1[] = "mTCP FtpSrv by M Brutman (mbbrutman@gmail.com) (C)opyright 2010-2026\n";
 static char CopyrightMsg2[] = "Version: " __DATE__ "\n\n";
 
+/* Local keyboard handoff. The batch wrapper starts DOS SHELL only after the
+   server and supervisor have exited, preserving interactive console handles. */
+static int requestDosShell(void) {
+  if (FtpClient::activeClients || access("C:\\NET\\JOBS\\LOCK",0)==0) {
+    addToScreen(0,"DOS SHELL: disconnect clients and finish the pending job first\n");return 0;
+  }
+  if (!getenv("DOSAGENT_VERSION") || access("C:\\NET\\AGENT\\SHELL.OK",0) || access("C:\\DOSSHELL\\DOSSHELL.BAT",0)) {
+    addToScreen(0,"DOS SHELL handoff is not installed\n");return 0;
+  }
+  if (access("C:\\NET\\AGENT\\SHELL.REQ",0)==0) {
+    addToScreen(0,"DOS SHELL: an earlier handoff request still exists\n");return 0;
+  }
+  FILE *f=fopen("C:\\NET\\AGENT\\SHELL.NEW","w");if(!f)return 0;
+  int ok=fputs("Interactive DOS SHELL request\n",f)>=0;if(fclose(f))ok=0;
+  if(!ok||rename("C:\\NET\\AGENT\\SHELL.NEW","C:\\NET\\AGENT\\SHELL.REQ")) {
+    remove("C:\\NET\\AGENT\\SHELL.NEW");addToScreen(0,"Unable to request DOS SHELL\n");return 0;
+  }
+  addToScreen(0,"Opening DOS SHELL; FTP resumes when you exit the shell\n");return 1;
+}
+
+
+#ifdef LOC_SHELL_EMBEDDED
+#include "LOCFTP.H"
+#else
+static int shellVisible=0,shellDrain=0,shellReload=0;
+static int shellProtected(const char*){return 0;}
+static void shellImageWritten(FtpClient*){}
+static void shellContextWritten(const char*){}
+static void shellTransferFinished(FtpClient*){}
+static void shellTransferFailed(FtpClient*){}
+static void shellFileChanged(const char*,const char*,unsigned long,int){}
+static void shellLogEvent(const char*){}
 int main( int argc, char *argv[] ) {
 
   daInit();
@@ -572,6 +604,9 @@ int main( int argc, char *argv[] ) {
               else if ( key == 35 ) {   // Alt-H, Help
                 doConsoleHelp( );
               }
+              else if ( key == 32 ) {   // Alt-D, release server memory and open DOS SHELL
+                if (requestDosShell()) ShutdownRequested=2;
+              }
               else if ( key == 45 ) {   // Alt-X, EndProgram
                 // Use ++ here in case another mechanism has already triggered a shutdown.
                 // Those shold not be reset by the user entering something.
@@ -693,6 +728,9 @@ int main( int argc, char *argv[] ) {
 
 
 
+
+
+#endif
 
 void shutdown( int rc ) {
 
@@ -1198,6 +1236,10 @@ void serviceClient( FtpClient *client ) {
     }
 
     case FtpClient::CommandLine: {
+      if(shellDrain && (strcmp(command,"QUIT") && strcmp(command,"NOOP"))) {
+        client->addToOutput("450 Local launch pending; retry after return" _NL_);break;
+      }
+
 
       if ( strcmp(command, "QUIT") == 0 ) {
 
@@ -1409,7 +1451,29 @@ void doSite( FtpClient *client, char *nextTokenPtr ) {
   char siteCmd[ 10 ];
   nextTokenPtr = Utils::getNextToken( nextTokenPtr, siteCmd, 10 );
 
-  if ( stricmp( siteCmd, "agent" ) == 0 ) { client->addToOutput("211 DOSCTL protocol=2 ftp=2 jobs=1 labels=1 savers=1 island=1 scenes=1" _NL_); }
+  if ( stricmp( siteCmd, "agent" ) == 0 ) { client->addToOutput("211 DOSCTL protocol=2 ftp=2 jobs=1 labels=1 savers=1 mathrev=4 sculptseed=1 island=1"
+#ifdef LOC_SHELL_EMBEDDED
+      " locshell=22 statusrows=2 ramfit=1 bootreq=1 dashboard=1 recent=1 autoreload=1"
+#endif
+      );
+#ifdef LOC_SHELL_EMBEDDED
+      client->addToOutput_var(" jobui=%u" _NL_,getenv("LOC_AGENT_UI") && !strcmp(getenv("LOC_AGENT_UI"),"1") ? 1 : 0);
+#else
+      client->addToOutput(_NL_);
+#endif
+  }
+  else if ( stricmp( siteCmd, "dashboard" ) == 0 ) {
+#ifdef LOC_SHELL_EMBEDDED
+    DNSnapshot s;ds_net_snapshot(&s);
+    client->addToOutput_var("211 DASHBOARD files_in=%lu files_out=%lu uploaded=%lu downloaded=%lu failed=%lu changes=%u uptime=%lu" _NL_,s.files_in,s.files_out,s.uploaded,s.downloaded,s.failed,netFileCount,s.uptime);
+#else
+    client->addToOutput("502 Dashboard is not loaded" _NL_);
+#endif
+  }
+  else if ( stricmp( siteCmd, "heap" ) == 0 ) {
+    int farStatus=_heapchk(), nearStatus=_nheapchk();
+    client->addToOutput_var("211 HEAP far=%d near=%d" _NL_,farStatus,nearStatus);
+  }
   else if ( stricmp( siteCmd, "saver" ) == 0 ) {
     char action[12]; nextTokenPtr=Utils::getNextToken(nextTokenPtr, action, sizeof(action));
     if (!stricmp(action, "preview")) {
@@ -1430,8 +1494,9 @@ void doSite( FtpClient *client, char *nextTokenPtr ) {
       daPreviewPending=1;
       client->addToOutput("211 Preview queued until clients disconnect" _NL_);
     } else if (!*action) {
-      client->addToOutput_var("211 SAVER selected=%s island_frames=%lu island_ticks=%lu island_error=%u island_adlib=%u island_fault=%u island_volume=%u island_twinkles=%u" _NL_,
-        daSaverKeys[daSaver],isFrames,isSceneTicks,isError,isAdlib,isFault,isGetVolume(),dsTwinkles);
+      client->addToOutput_var("211 SAVER selected=%s kind=%u seed=%lu frames=%lu ticks=%lu first_ticks=%lu island_frames=%lu island_ticks=%lu island_error=%u island_adlib=%u island_fault=%u island_volume=%u island_twinkles=%u" _NL_,
+        daSaverKeys[daSaver], msLastKind, msLastSeed, msFrames, msElapsedTicks, msFirstFrameTicks,
+        isFrames,isSceneTicks,isError,isAdlib,isFault,isGetVolume(),dsTwinkles);
     } else client->addToOutput("501 Use SITE SAVER [PREVIEW [name]]" _NL_);
   }
   else if ( stricmp( siteCmd, "stats" ) == 0 ) {
@@ -1840,6 +1905,7 @@ void doDele( FtpClient *client, char *nextTokenPtr ) {
     return;
   }
 
+  if(shellProtected(fullpath)){client->addToOutput("450 Local shell state is in use" _NL_);return;}
   struct stat statbuf;
   int rc = stat( fullpath, &statbuf );
 
@@ -1852,7 +1918,7 @@ void doDele( FtpClient *client, char *nextTokenPtr ) {
         client->addToOutput_var( Msg_550_Error_Removing_v, userPart );
       }
       else {
-        client->addToOutput_var( Msg_250_Cmd_Successful_v, "DELE" );
+        shellContextWritten(fullpath); shellFileChanged("Deleted",fullpath,0,1); client->addToOutput_var( Msg_250_Cmd_Successful_v, "DELE" );
         addToScreen( 1, "(%lu) DELE %s\n", client->sessionId, fullpath );
       }
     }
@@ -1893,6 +1959,7 @@ void doRmd( FtpClient *client, char *nextTokenPtr ) {
     return;
   }
 
+  if(shellProtected(fullpath)){client->addToOutput("450 Local shell state is in use" _NL_);return;}
   struct stat statbuf;
   int rc = stat( fullpath, &statbuf );
 
@@ -1905,7 +1972,7 @@ void doRmd( FtpClient *client, char *nextTokenPtr ) {
         client->addToOutput_var( Msg_550_Error_Removing_v, userPart );
       }
       else {
-        client->addToOutput_var( Msg_250_Cmd_Successful_v, "RMD" );
+        shellFileChanged("Removed dir",fullpath,0,1); client->addToOutput_var( Msg_250_Cmd_Successful_v, "RMD" );
         addToScreen( 1, "(%lu) RMD %s\n", client->sessionId, fullpath );
       }
     }
@@ -1966,7 +2033,7 @@ void doMkd( FtpClient *client, char *nextTokenPtr ) {
       client->addToOutput_var( "550 Error creating %s" _NL_, (tmpPath+ftpRootLen) );
     }
     else {
-      client->addToOutput_var( "257 %s created" _NL_, (tmpPath+ftpRootLen) );
+      shellFileChanged("Created dir",fullpath,0,1); client->addToOutput_var( "257 %s created" _NL_, (tmpPath+ftpRootLen) );
       addToScreen( 1, "(%lu) MKD %s\n", client->sessionId, tmpPath );
     }
 
@@ -2003,6 +2070,7 @@ void doRnfr( FtpClient *client, char *nextTokenPtr ) {
     return;
   }
 
+  if(shellProtected(fullpath)){client->addToOutput("450 Local shell state is in use" _NL_);return;}
   struct stat statbuf;
   int rc = stat( fullpath, &statbuf );
 
@@ -2037,6 +2105,7 @@ void doRnto( FtpClient *client, char *nextTokenPtr ) {
     return;
   }
 
+  if(shellProtected(fullpath)){client->addToOutput("450 Local shell state is in use" _NL_);return;}
   struct stat statbuf;
   int rc = stat( fullpath, &statbuf );
 
@@ -2044,7 +2113,7 @@ void doRnto( FtpClient *client, char *nextTokenPtr ) {
 
     // Good, it does not exist yet
 
-    if ( rename( client->filespec, fullpath ) == 0 ) {
+    if ( rename( client->filespec, fullpath ) == 0 ) { if(!stricmp(fullpath,"C:\\DOSSHELL\\LOCSHELL.EXE"))shellReload=1; shellContextWritten(fullpath); shellContextWritten(client->filespec); shellFileChanged("Renamed",fullpath,0,1);
       addToScreen( 1, "(%lu) RNTO %s to %s\n", client->sessionId, client->filespec, fullpath );
       client->addToOutput_var( Msg_250_Cmd_Successful_v, "Rename" );
     }
@@ -2466,6 +2535,11 @@ int formFullPath_DataXfer( FtpClient *client, char *outBuffer, int outBufferLen,
     rc = 0;
   }
 
+  if(!rc &&
+      (client->dataXferType==FtpClient::Stor || client->dataXferType==FtpClient::StorA || client->dataXferType==FtpClient::StorU) &&
+      shellProtected(outBuffer)) {
+    endDataTransfers(client,"450 Local shell files are in use" _NL_);return 1;
+  }
   switch ( rc ) {
 
     case 0: { break; }
@@ -2845,6 +2919,7 @@ void doDataXfer( FtpClient *client, char *parms ) {
         filemode[2] = 0;
 
         client->file = fopen( fullpath, filemode );
+        if(client->file)shellContextWritten(fullpath);
 
         if ( client->file == NULL ) {
           endDataTransfers( client, Msg_550_Filesystem_error );
@@ -2897,6 +2972,7 @@ void doDataXfer( FtpClient *client, char *parms ) {
         filemode[2] = 0;
 
         client->file = fopen( fullpath, filemode );
+        if(client->file)shellContextWritten(fullpath);
 
         if ( client->file == NULL ) {
           endDataTransfers( client, Msg_550_Filesystem_error );
@@ -2918,6 +2994,8 @@ void doDataXfer( FtpClient *client, char *parms ) {
     // Common initialization for all of the data transfer types
 
     client->dataXferState = FtpClient::DL_Active;
+    client->observedBytes=client->observedTotal=0;
+    {struct stat st;if(client->dataXferType==FtpClient::Retr&&client->file&&!fstat(fileno(client->file),&st))client->observedTotal=st.st_size;}
     client->bytesSent = 0;
     client->fileBufferIndex = 0;
 
@@ -2960,7 +3038,7 @@ void doDataXfer( FtpClient *client, char *parms ) {
 
       // Are there leftover bytes to send from the last time we were called?
       if ( client->fileBufferIndex ) {
-        client->bytesSent += client->ds->send( (uint8_t *)(client->fileBuffer) + client->bytesSent, client->fileBufferIndex - client->bytesSent );
+        {uint16_t sent=client->ds->send( (uint8_t *)(client->fileBuffer) + client->bytesSent, client->fileBufferIndex - client->bytesSent );client->bytesSent+=sent;client->observedBytes+=sent;}
         // client->bytesSent += client->ds->send( (uint8_t *)(client->fileBuffer) + client->bytesSent, 1 );
         if ( client->bytesSent == client->fileBufferIndex ) {
           // Good - we cleared out the previous data.
@@ -3056,6 +3134,7 @@ void doDataXfer( FtpClient *client, char *parms ) {
       // Send the bytes out?
       if ( client->fileBufferIndex ) {
         client->bytesSent = client->ds->send( (uint8_t *)(client->fileBuffer), client->fileBufferIndex );
+        client->observedBytes+=client->bytesSent;
         // client->bytesSent = client->ds->send( (uint8_t *)(client->fileBuffer), 1 );
         if ( client->bytesSent == client->fileBufferIndex ) {
           // Good - we cleared out the previous data.
@@ -3078,6 +3157,7 @@ void doDataXfer( FtpClient *client, char *parms ) {
 
         if ( recvRc > 0 ) {
 
+          client->observedBytes+=recvRc;
           client->bytesRead += recvRc;
           client->bytesToRead -= recvRc;
 
@@ -3125,11 +3205,12 @@ void doDataXfer( FtpClient *client, char *parms ) {
         case FtpClient::List: { Stat_LIST++; break; }
         case FtpClient::Nlist: { Stat_NLST++; break; }
         case FtpClient::Retr:  { Stat_RETR++; addToScreen( 1, "(%lu) RETR completed\n", client->sessionId ); break; }
-        case FtpClient::Stor:  { Stat_STOR++; addToScreen( 1, "(%lu) STOR completed\n", client->sessionId ); break; }
-        case FtpClient::StorA: { Stat_APPE++; addToScreen( 1, "(%lu) APPE completed\n", client->sessionId ); break; }
-        case FtpClient::StorU: { Stat_STOU++; addToScreen( 1, "(%lu) STOU completed\n", client->sessionId ); break; }
+        case FtpClient::Stor:  { Stat_STOR++; shellImageWritten(client); addToScreen( 1, "(%lu) STOR completed\n", client->sessionId ); break; }
+        case FtpClient::StorA: { Stat_APPE++; shellImageWritten(client); addToScreen( 1, "(%lu) APPE completed\n", client->sessionId ); break; }
+        case FtpClient::StorU: { Stat_STOU++; shellImageWritten(client); addToScreen( 1, "(%lu) STOU completed\n", client->sessionId ); break; }
       }
 
+      shellTransferFinished(client);
       client->dataXferState = FtpClient::DL_Closing;
       client->addToOutput( Msg_226_Transfer_Complete );
     }
@@ -3163,6 +3244,8 @@ void doAbort( FtpClient *client ) {
 // away without a message.
 
 void endDataTransfers( FtpClient *client, char *msg ) {
+
+  if(client->dataXferState==FtpClient::DL_Active)shellTransferFailed(client);
 
   TRACE(( "Ftp (%lu) endDataTransfers  cs: (%08lx)  ds: (%08lx)  ls: (%08lx)\n",
           client->sessionId, client->cs, client->ds, client->ls ));
@@ -3908,7 +3991,7 @@ static int initSrv( void ) {
     if ( rc < 0 ) {
       addToScreen( 1, "\nFailed to resolve %s - exiting\n", Pasv_Name );
       Utils::endStack( );
-      if ( LogFile != NULL ) fclose( LogFile );
+      if ( LogFile != NULL ) {fclose( LogFile );LogFile=NULL;}
       return 1;
     }
 
@@ -4085,7 +4168,7 @@ void scrollMsgArea( int lines ) {
 char logLineBuffer[512];
 
 void addToScreen( int writeLog, const char *fmt, ... ) {
-  if(daActivity()) redrawStatusLine();
+  if(!shellVisible && daActivity()) redrawStatusLine();
 
   va_list ap;
   va_start( ap, fmt );
@@ -4123,6 +4206,9 @@ void addToScreen( int writeLog, const char *fmt, ... ) {
     fflush( LogFile );
   }
 
+
+  if(writeLog)shellLogEvent(logLineBuffer);
+  if (shellVisible) return;
 
   // Now write it onto the screen in the message area.
 
@@ -4187,7 +4273,7 @@ void addToScreen( int writeLog, const char *fmt, ... ) {
 // as the logger does, so don't let the logger use this.
 
 void myCprintf( uint8_t x, uint8_t y, uint8_t attr, char *fmt, ... ) {
-  if(daActivity()) redrawStatusLine();
+  if(!shellVisible && daActivity()) redrawStatusLine();
 
   va_list ap;
   va_start( ap, fmt );
@@ -4288,6 +4374,7 @@ void doConsoleHelp( void ) {
   
   addToScreen( 0, "\n%s  %s", CopyrightMsg1, CopyrightMsg2 );
   addToScreen( 0, "Alt B: Toggle beeper   Alt-S: Stats   Alt-U: Users   Alt-X: Exit\n" );
+  addToScreen(0,"Alt-D: DOS SHELL (FTP pauses; resumes after shell exit)\n");
   addToScreen( 0, "Alt-V: Cycle/save saver   Alt-P: Preview (no connected clients)\n" );
   showRealIpAddr( 0 );
   addToScreen( 0, "\n" );

@@ -329,3 +329,17 @@ one emulator baseline comparison showed0.42% fewer busy-loop iterations during
 heartbeat/snapshot requests. It generates no DOS Ethernet traffic. These are
 emulator measurements, not physical UART/network acceptance. Existing DOS
 management FTPSRV/job execution remains the production interface.
+
+## LOC SHELL Home and backup reports
+
+The integrated launcher, native FTP views and full-width Home dashboard are
+now built from this repository. See [LOC SHELL](../locshell/README.md) for build,
+installation layout and acceptance commands. F2 opens Home. Recent plays are
+recorded at validated dispatch; live FTP progress, file changes, queued jobs and
+reload status share the same interface. Existing catalogue, memory observations,
+boot/driver configuration and saved preferences must survive an upgrade.
+
+`dosctl saves dashboard --output VAULT.STA` exports a read-only report of actual
+published backups. Publish it as `C:\DOSSHELL\VAULT.STA`. The report includes
+backup/report times; it does not claim local saves are synced. Native automatic
+two-way sync remains unfinished. See [vault status](saves/README.md).

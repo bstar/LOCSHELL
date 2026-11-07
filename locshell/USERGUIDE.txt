@@ -1,0 +1,170 @@
+LOC SHELL 2.2
+=============
+
+Start C:\DOSSHELL\LOCSHELL.BAT. LOCSHELL.EXE also enters the same launcher
+when opened directly. The catalogue, FTP server, client/transfer views,
+activity history, screensavers and mTCP tools share the LOC SHELL interface.
+
+FTP starts automatically unless you turn off "Start FTP with LOC SHELL".
+It continues serving while you navigate, inspect details or edit an entry.
+Stopping FTP for this session does not change the saved startup preference.
+
+Views and keys
+--------------
+F2 opens Home, the full-width dashboard. It has no sidebar. The first start
+after this upgrade opens Home; later starts restore the saved view.
+Cards show FTP address/clients, the save-vault report and this session's file
+counts/bytes/uptime. The wide work panel shows the active file, observed bytes,
+rate, and percentage only when the file size is known. Completed uploads,
+downloads, renames, deletes and directory changes remain in recent file history
+for this service session. Aborted transfers are reported as failures.
+
+Home's recent list survives restarts. A game/application enters it when the
+validated launch handoff starts, not when a launch is selected or rejected.
+Setup commands, arbitrary file browsing and shell restarts are not recorded as
+plays. mTCP tools are tracked separately from the selected game. Their recent
+shortcuts reopen the arguments dialog; private command arguments are not saved.
+Until the list fills, favorites with a current positive RAM fit may appear.
+Recent applications retain the same RAM/boot markers and launch guards as Games.
+Tab/arrows move focus; Enter or 1-6 launches a recent entry. Mouse links work
+throughout the dashboard. G opens Games, T Tools, F FTP, A Activity and V Vault.
+F4/F7 inspect memory and recording for the selected application; F5 refreshes.
+File/View menus remain available, including View -> Dashboard.
+
+The save-vault card shows published backup metadata and its timestamp, not a
+claim that local saves match the vault. Automatic two-way sync is not active.
+Missing or invalid reports show unknown status; the card never invents a
+"Synced" state. V explains backup/report dates and unchecked local changes.
+On the host, `dosctl saves dashboard --output VAULT.STA` exports an actual report.
+Publish it to C:\DOSSHELL\VAULT.STA; the dashboard rereads it about every 2 seconds.
+RECENT.TXT is owned by the launch helper and protected from live FTP writes.
+
+The interface fills the 80x25 screen. The game list shows 18 rows and longer
+titles; header, menus and status rows span the full width. Available DOS,
+EMS and XMS memory appears in the title bar; shortcuts appear in the menu row.
+The header uses the boot menu's MACHINE directory key to read the Machine:
+display name in C:\BOOT\<key>\PROFILE.TXT, falling back to the key if no label
+is available. SET LOCSHELL_PROFILE=My profile overrides that name for the shell
+and management-job screens. Without either environment value, only LOC SHELL
+and its version appear. Long names fit the header. Display names may exceed
+DOS's eight-character directory limit while keeping the existing directory key.
+
+The bottom two rows stay visible while browsing and editing:
+Connections shows FTP state, address and connected clients. A brief * marks
+network traffic. Active job names the current file transfer or queued job,
+with observed byte counts and a total when known. Its spinner advances while
+transfer bytes progress; a dot means waiting, + means completed and ! means
+failed. Idle means no current work. Management jobs show their supplied label
+and ID, and report that FTP is paused while the foreground job executes.
+Programs that draw their own screen can replace that foreground display.
+
+Use the left column for Games, FTP server, Clients, Transfers, Activity,
+Screensavers and Tools. Game browsing groups appear below the sections.
+Tab focuses the left column; Up/Down chooses; Enter or Right opens a selection.
+Tab or Esc returns focus to the content. Click a section or group to open it.
+F6 opens FTP; F8 moves to the next view; Esc returns to Games.
+
+FTP: S Start, X Stop, R Restart, A toggle saved autostart, B toggle beeper.
+Clients/Transfers: Up/Down select, Enter details, D disconnect an idle client.
+Activity: Up/Down or Page Up/Down scroll the recent session events.
+Savers: Up/Down select, Enter save choice, P preview selected saver, I timeout.
+Tools: Up/Down select, Enter enter arguments/run, H original utility help.
+
+The server distinguishes Running, Stopping, Stopped and Unavailable. Client
+connections, file transfers and closing sessions have separate counts. A login
+or control reply is not displayed as an active file transfer. Transfer progress
+shows a total only when the server knows it.
+
+The five saver choices are Starfield, 387 Sculpture, 387 Mandelbrot, Island
+and Off. Island is the default when no saved choice exists. The screensaver
+view initially highlights the saved choice. Preview uses the highlighted
+choice without changing the saved saver.
+An idle timeout of 0 disables automatic saving. A key or mouse event wakes a
+saver without also triggering the action underneath it.
+
+All utilities are under C:\NET\BIN: DHCP, DNSTEST, FTP, HTGET, HTTPSERV, IRCJR,
+NC, NETDRIVE, PING, PKTTOOL, SNTP, SPDTEST, TELNET and ND_CACHE. The original
+help is available from Tools. DHCP configuration changes and NetDrive resident
+or mount actions require an explicit local selection. NETDRIVE.SYS is supplied
+but is not installed in CONFIG.SYS.
+
+Games and memory
+----------------
+Enter or Ctrl+R runs the selection. Ctrl+C runs its setup command.
+F4 shows the current profile, RAM available after the shell exits and the
+selected game's recorded use or documented needs. F5 refreshes RAM and setups.
+F7 opens observed allocation sessions and can arm one learning run.
+F9 opens the last launch report. Existing catalogue editing and sorting remain.
+
+The game list checks current RAM instead of merely saying Recorded:
+Amber ! / Boot XM (or another mode): the game needs a different boot profile.
+F4 explains which mode to select. Run Selected shows that instruction before
+starting the game or stopping FTP; configuration commands remain available.
+Optional catalogue ---BOOT--- lists accepted mode keys separated by commas.
+Green check / Runs: a confirmed gameplay/music recording matches this game,
+machine, boot, sound setup and retained memory layout, and its observed
+DOS/EMS/XMS use fits now. Recorded DOS use is compared with total recoverable
+memory; F4 also shows the largest contiguous block separately.
+Green check / Runs: complete documented requirements fit current RAM.
+Green check + amber ! / Runs: current RAM covers a prior confirmed run,
+but the game/profile/sound setup is not matched. This is a memory comparison,
+not confirmation that the current configuration works. Review it with F4/F7.
+Red X / Low RAM: a known minimum exceeds available RAM.
+Amber ! / Less RAM: below the recorded working budget; success is uncertain.
+Amber ! / Setup diff, Confirm or Incomplete: review the evidence with F4/F7.
+Unknown means neither complete requirements nor a usable recording is known.
+Checks update with available RAM about once per second, and after file updates.
+The conventional budget retains the small monitor allocation as a reserve.
+Checks do not establish CPU/video compatibility or every level/save's needs.
+
+A learning run installs a small observer only after LOC SHELL and its
+supervisor exit. It records DOS/EMS/XMS allocations and failures, then unloads
+when the command batch returns. Ordinary runs have no resident observer.
+The return prompt asks whether gameplay and music worked; choose Not sure
+when uncertain. A confirmed session describes the configuration and content
+actually played, not a minimum RAM requirement or a guarantee for every save.
+Each monitored run asks once. Confirmation includes settings the game saved
+during play, so a successful run can become Runs immediately on return.
+Allocation peaks are not bytes touched; extenders may bypass the hooks.
+
+LEARN.DAT stores observations separately from MEMORY.TSV. The context identity
+includes the executable, simple launch command, common configuration files and
+selected boot/audio settings. A COM loader's same-named EXE is also included.
+Boot-menu labels/defaults do not invalidate new recordings. Configuration
+changes trigger a review; a recording is not silently applied to another setup.
+In F7, C can confirm that the recorded gameplay/music worked with the current
+setup, reusing that observation without another monitored run. Do this only
+when that setup was actually played successfully. Complex launches stay partial.
+F7 Reset
+invalidates a confirmation after changing an untracked configuration.
+
+Launch, return and updates
+--------------------------
+Games and standalone utilities stop networking while they run. Pending launches
+wait for active transfers and connections; Esc cancels that wait. The combined
+application and supervisor release their memory before the program starts.
+The launcher returns to the C:\DOSSHELL directory before restarting.
+
+A typed, checksummed handoff validates the intended command script and simple
+working-directory/executable paths. Interrupted requests are retained for
+inspection and never automatically replayed. F9 and LAUNCH.LOG distinguish a
+missing file/directory, rejected request, dispatch and program return. A return
+alone does not prove that a game or its music worked. A nonzero status is
+reported without assuming that every game treats it as a failure.
+
+Replacing LOCSHELL.EXE or uploading C:\DOSSHELL\RELOAD.REQ queues a safe reload.
+Use RELOAD.REQ after the complete release has committed, including updates with
+unchanged size/timestamps. Reload waits for FTP clients and unfinished edits,
+saves preferences, then restarts through the batch launcher. Read-only pages
+and menus yield automatically to reloads and management jobs. Unfinished
+learning confirmations persist across such a handoff.
+
+The installed support files are LOCSHELL.BAT, LCSMAIN.BAT, LOCHAND.EXE,
+MEMWATCH.COM and MEMLEARN.EXE. Existing LIBRARY.TXT, DOSSHELL.CFG, MEMORY.TSV
+and learned records remain compatible. CLASSIC.BAT and DSHELL.EXE retain the
+standalone fallback. The classic FTP server remains available through
+C:\NET\NETFTP.BAT; its local shell shortcut opens LOC SHELL.
+
+Diagnostics: LOCSHELL.EXE /CHECK checks catalogue/memory without networking;
+/CHECKNET initializes the network, reports catalogue/memory, then exits.
+Automated emulator checks run headlessly with DOSBox close confirmation off.

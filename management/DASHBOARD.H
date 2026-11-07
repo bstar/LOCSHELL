@@ -7,6 +7,24 @@
 #include <stdlib.h>
 #include <string.h>
 #include <memory.h>
+#ifdef LOC_SHELL_EMBEDDED
+extern "C" void ds_shell_mouse_suspend(int);
+extern "C" void ds_shell_mouse_sleep_started(void);
+extern "C" int ds_shell_mouse_wake(void);
+/* Use available upper-memory blocks for transient saver buffers, and restore
+   the caller's DOS policy before returning to the cooperative service loop. */
+struct DaAllocationPolicy { unsigned strategy,linked,block; int changed; };
+static void daAllocateHigh(DaAllocationPolicy *p){union REGS r;p->changed=0;p->block=_amblksiz;_amblksiz=1024;
+ r.x.ax=0x5800;int86(0x21,&r,&r);if(r.x.cflag)return;p->strategy=r.x.ax;
+ r.x.ax=0x5802;int86(0x21,&r,&r);if(r.x.cflag)return;p->linked=r.h.al;
+ r.x.ax=0x5803;r.x.bx=1;int86(0x21,&r,&r);if(r.x.cflag)return;p->changed=1;
+ r.x.ax=0x5801;r.x.bx=0x80|(p->strategy&3);int86(0x21,&r,&r);
+}
+static void daRestoreAllocation(DaAllocationPolicy *p){union REGS r;_amblksiz=p->block;if(!p->changed)return;
+ r.x.ax=0x5801;r.x.bx=p->strategy;int86(0x21,&r,&r);
+ r.x.ax=0x5803;r.x.bx=p->linked;int86(0x21,&r,&r);
+}
+#endif
 static unsigned short far *daVideo;
 static unsigned short daSaved[4000];
 /* Compose the complete header off-screen, then commit only changed cells. */
@@ -23,26 +41,66 @@ static int daPreviewPending=0;
 static int daPreviewChoice=-1,daPreviewRestore=-1;
 #ifdef DA_ISLAND_SAVER
 #include "ISLANDSAV.H"
-#define DA_SAVER_COUNT 3
-#define DA_SAVER_OFF 2
+#define DA_SAVER_COUNT 5
+#define DA_SAVER_OFF 4
 #ifndef DA_ISLAND_DIRECTORY
 #define DA_ISLAND_DIRECTORY "C:\\ISLAND"
 #endif
 static int daIsland=0;
-static const char *daSaverNames[DA_SAVER_COUNT]={"Starfield","Island","Off"};
-static const char *daSaverKeys[DA_SAVER_COUNT]={"stars","island","off"};
+static const char *daSaverNames[DA_SAVER_COUNT]={"Starfield","387 Sculpture","387 Mandelbrot","Island","Off"};
+static const char *daSaverKeys[DA_SAVER_COUNT]={"stars","sculpture","mandelbrot","island","off"};
 #else
-#define DA_SAVER_COUNT 2
-#define DA_SAVER_OFF 1
-static const char *daSaverNames[DA_SAVER_COUNT]={"Starfield","Off"};
-static const char *daSaverKeys[DA_SAVER_COUNT]={"stars","off"};
+#define DA_SAVER_COUNT 4
+#define DA_SAVER_OFF 3
+static const char *daSaverNames[DA_SAVER_COUNT]={"Starfield","387 Sculpture","387 Mandelbrot","Off"};
+static const char *daSaverKeys[DA_SAVER_COUNT]={"stars","sculpture","mandelbrot","off"};
 #endif
 #ifndef DA_SAVER_CONFIG
 #define DA_SAVER_CONFIG "C:\\NET\\AGENT\\SAVER.CFG"
 #endif
 #ifdef DA_GRAPHICS_SAVER
+#include "MATHSAVE.H"
 #define DA_STARS 96
 static int daGraphics=0;
+static int daFpu=0,daMath=0;
+/* Non-waiting probe after BIOS equipment check, then distinguish projective
+   8087/287 infinity from the 387's signed infinities. No math renderer is
+   entered before this check. The rest of FTPSRV remains an 8086 integer build. */
+static int daDetect387(void){unsigned control=0,status=0,cpuFlags=0;
+ if(!(*((unsigned short far *)MK_FP(0x40,0x10))&2))return 0;
+ _asm {
+  fninit
+  fnstcw control
+ }
+ if((control&0x103f)!=0x003f)return 0;
+ _asm {
+  fld1
+  fldz
+  fdivp st(1),st
+  fld st(0)
+  fchs
+  fcompp
+  fstsw status
+  fninit
+ }
+ if(status&0x4000)return 0;
+ /* The renderer may use 386 instructions. A 287XL on a 286 must also fall back.
+    Restore FLAGS exactly after checking the real-mode 386 flag behavior. */
+ _asm {
+  pushf
+  pop cx
+  mov ax,cx
+  or ax,0x7000
+  push ax
+  popf
+  pushf
+  pop ax
+  mov cpuFlags,ax
+  push cx
+  popf
+ }
+ return (cpuFlags&0x7000)==0x7000;
+}
 static unsigned char daVgaState[4096],daFont[8192];
 static unsigned char far *daPixels=(unsigned char far *)MK_FP(0xa000,0);
 static unsigned daOldMode=3;
@@ -62,7 +120,8 @@ static int daGraphicsEnter(void){union REGS r;struct SREGS seg;unsigned si,map,i
  if(backend&&!stricmp(backend,"text"))return 0;
  r.x.ax=0x1a00;int86(0x10,&r,&r);if(r.h.al!=0x1a||(r.h.bl!=7&&r.h.bl!=8))return 0;
  daOldMode=*((unsigned char far *)MK_FP(0x40,0x49));
- if(daOldMode!=3||daRows!=25)return 0;
+ /* VGA 80-column modes 2 and 3 use the same text memory/font layout. */
+ if((daOldMode!=2&&daOldMode!=3)||daRows!=25)return 0;
  /* Nonstandard font banks keep the compatible text saver. */
  si=inp(0x3c4);map=daReg(0x3c4,3);outp(0x3c4,si);if(map)return 0;
  r.x.ax=0x1c00;r.x.cx=7;int86(0x10,&r,&r);if(r.h.al!=0x1c||r.x.bx>64)return 0;
@@ -138,6 +197,16 @@ static unsigned daProject(unsigned i){int x,y;
 
 
 static unsigned long daNow(void){return *((unsigned long far *)MK_FP(0x40,0x6c));}
+static unsigned long daSeedState=0x61c88647UL;
+static unsigned long daFreshSeed(void){unsigned phase=0;unsigned long previous=daSeedState,value;
+#ifdef DA_GRAPHICS_SAVER
+ daPitRead(&phase);
+#endif
+ value=previous+0x9e3779b9UL;value^=daNow();value^=(unsigned long)phase<<16;
+ value^=value<<13;value^=value>>17;value^=value<<5;
+ if(!value||value==previous)value=previous+1;
+ if(!value)value=1;daSeedState=value;return value;
+}
 static unsigned long daElapsed(unsigned long a,unsigned long b){return a>=b?a-b:0x1800b0UL-b+a;}
 static void daText(int x,int y,int attr,const char *s){while(*s&&x<(int)daCols){daCell(y*daCols+x++,(attr<<8)|(unsigned char)*s++);}}
 static void daLine(int row,int attr,int ch){unsigned x;for(x=0;x<daCols;x++)daCell(row*daCols+x,(attr<<8)|ch);}
@@ -150,20 +219,32 @@ static void daInit(void){unsigned mode=*((unsigned char far *)MK_FP(0x40,0x49));
  {char choice[32]="";unsigned i;FILE *f=fopen(DA_SAVER_CONFIG,"r");
   if(f){fgets(choice,sizeof(choice),f);fclose(f);choice[strcspn(choice,"\r\n")]=0;}
   e=getenv("DOSAGENT_SAVER");if(e){strncpy(choice,e,sizeof(choice)-1);choice[sizeof(choice)-1]=0;}
-  daSaver=0;for(i=0;i<DA_SAVER_COUNT;i++)if(!stricmp(choice,daSaverKeys[i]))daSaver=i;
+#ifdef LOC_SHELL_EMBEDDED
+  daSaver=3;
+#else
+  daSaver=0;
+#endif
+  for(i=0;i<DA_SAVER_COUNT;i++)if(!stricmp(choice,daSaverKeys[i]))daSaver=i;
  }
+#ifdef DA_GRAPHICS_SAVER
+ daFpu=daDetect387();
+#endif
 }
 static void daWake(void){unsigned i;union REGS r;if(!daSleeping)return;
 #ifdef DA_ISLAND_SAVER
  if(daIsland){isEnd();daIsland=0;}
 #endif
 #ifdef DA_GRAPHICS_SAVER
+ if(daMath){msEnd();daMath=0;}
  if(daGraphics)daGraphicsLeave();
 #endif
  for(i=0;i<daCols*daRows;i++)daVideo[i]=daSaved[i];
  r.h.ah=1;r.x.cx=daCursor;int86(0x10,&r,&r);
  r.h.ah=2;r.h.bh=0;r.x.dx=daCursorPos;int86(0x10,&r,&r);daSleeping=0;daIdle=daNow();
  if(daPreviewRestore>=0){daSaver=daPreviewRestore;daPreviewRestore=-1;}
+#ifdef LOC_SHELL_EMBEDDED
+ ds_shell_mouse_suspend(0);
+#endif
 }
 static int daActivity(void){int was=daSleeping;daWake();daIdle=daNow();return was;}
 static int daKey(void){return daActivity();}
@@ -196,7 +277,10 @@ static void daDraw(const char *state,const char *id,const char *command,unsigned
  lit=r.x.ax?(unsigned)(((unsigned long)maxblock*16UL*24UL)/((unsigned long)r.x.ax*1024UL)):0;if(lit>24)lit=24;
  daText(2,5,0x07,"FREE DOS BLOCK [");for(i=0;i<24;i++)daCell(5*80+18+i,((i<lit?0x0a:0x08)<<8)|(i<lit?219:176));
  sprintf(b,"] %lu KB",(unsigned long)maxblock/64UL);daText(42,5,0x0f,b);
- sprintf(b,"Alt-V Saver: %s | Alt-P Preview | Idle: %lu s",daSaverNames[daSaver],daTimeout);daText(2,6,0x08,b);
+ sprintf(b,"Alt-D DOS SHELL | Alt-V %s | Alt-P Preview | %lu s idle",daSaverNames[daSaver],daTimeout);daText(2,6,0x08,b);
+#ifdef DA_GRAPHICS_SAVER
+ if((daSaver==1||daSaver==2)&&!daFpu)daText(56,5,0x0e,"387 absent: stars");
+#endif
  daLine(7,0x05,196);
  daComposing=0;daHeaderWrites=0;
  for(i=0;i<640;i++)if(daVideo[i]!=daHeader[i]){daVideo[i]=daHeader[i];daHeaderWrites++;}
@@ -210,6 +294,11 @@ static void daPoll(int active){unsigned long now=daNow();unsigned i;
  }
  if(daSaver==DA_SAVER_OFF)return;
  if(!daSleeping&&daElapsed(now,daIdle)>=daTimeoutTicks){
+#ifdef LOC_SHELL_EMBEDDED
+  DaAllocationPolicy allocation;
+  ds_shell_mouse_suspend(1);
+  daAllocateHigh(&allocation);
+#endif
   for(i=0;i<daCols*daRows;i++)daSaved[i]=daVideo[i];
   /* Capture the text cursor before a VGA mode switch replaces BIOS state. */
   {union REGS r;r.h.ah=3;r.h.bh=0;int86(0x10,&r,&r);daCursor=r.x.cx;daCursorPos=r.x.dx;}
@@ -217,20 +306,36 @@ static void daPoll(int active){unsigned long now=daNow();unsigned i;
   daGraphics=daGraphicsEnter();
 #ifdef DA_ISLAND_SAVER
   daIsland=0;
-  if(daGraphics && daSaver==1)daIsland=isBegin(DA_ISLAND_DIRECTORY);
+  if(daGraphics && daSaver==3)daIsland=isBegin(DA_ISLAND_DIRECTORY);
 #endif
+  daMath=0;if(daGraphics&&daFpu&&(daSaver==1||daSaver==2)){
+#ifdef DA_TEST_SEED
+   daMath=msBegin(daSaver,DA_TEST_SEED);
+#else
+   daMath=msBegin(daSaver,daFreshSeed());
+#endif
+  }
   if(!daGraphics)
 #endif
   for(i=0;i<daRows;i++)daLine(i,0,' ');
   {union REGS r;r.h.ah=1;r.x.cx=0x2000;int86(0x10,&r,&r);}
   for(i=0;i<DA_STARS;i++){daResetStar(i,16+((daRand()*240u)>>8));daPos[i]=-1;}
+#ifdef LOC_SHELL_EMBEDDED
+  daRestoreAllocation(&allocation);
+#endif
   daSleeping=1;daFrame=now;daPitBudget=0;daPitReady=daPitRead(&daPitLast);
+#ifdef LOC_SHELL_EMBEDDED
+  ds_shell_mouse_sleep_started();
+#endif
  }
  if(!daSleeping)return;
 #ifdef DA_GRAPHICS_SAVER
+ /* Math steps have their own bounded work budget and must run between packet
+    polls rather than waiting for the starfield's frame timer. */
 #ifdef DA_ISLAND_SAVER
  if(daIsland){isStep();return;}
 #endif
+ if(daMath){msStep(daPixels);return;}
 #endif
  if(daPitReady){unsigned phase,delta;if(!daPitRead(&phase)){daPitReady=0;return;}
   delta=phase-daPitLast;daPitLast=phase;daPitBudget+=delta;

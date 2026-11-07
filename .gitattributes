@@ -1,0 +1,8 @@
+# DOS sources retain their existing CRLF bytes.
+src/APPS/FTPSRV/*.CPP whitespace=cr-at-eol
+src/APPS/FTPSRV/*.H whitespace=cr-at-eol
+locshell/install/*.BAT whitespace=cr-at-eol
+# Unified diffs necessarily contain single-space context lines.
+third_party/*.patch -whitespace
+# Preserve the vendored license verbatim.
+third_party/watcom-heap/LICENSE -whitespace

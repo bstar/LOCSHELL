@@ -11,6 +11,10 @@ which parts this fork changes.
 
 ## What this fork adds
 
+- [LOC SHELL](locshell/README.md): an integrated game/application launcher with
+  memory checks, a full-width Home dashboard, recent launches, live FTP work
+  and backup-vault reporting. Build with `tools/build.py --locshell`.
+
 - A DOS operations dashboard with job status, a memory indicator and an idle
   VGA starfield with a text-mode fallback.
 - A foreground job supervisor and host-side `dosctl` CLI for verified FTP
@@ -70,7 +74,8 @@ this fork owns the FTP lifecycle and display restoration. Run
 `git submodule update --init --recursive` before building. To test another
 checkout, set `DOS_SCENES_SOURCE` to its `src` directory.
 
-Alt-V cycles and saves Starfield / Island / Off in `C:\NET\AGENT\SAVER.CFG`.
+The classic server also supports 387 Sculpture and progressive Mandelbrot savers when a 386/387 is available.
+Alt-V cycles and saves Starfield / 387 Sculpture / 387 Mandelbrot / Island / Off in `C:\NET\AGENT\SAVER.CFG`.
 Alt-P previews the selection. `DOSAGENT_SAVER=stars|island|off` overrides the
 saved selection; `DOSAGENT_IDLE=0` disables activation. Place a scene pack in
 `C:\ISLAND` (or override `DA_ISLAND_DIRECTORY` at compile time). The Island slot

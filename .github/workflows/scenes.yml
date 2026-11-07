@@ -27,3 +27,6 @@ jobs:
           echo "$WATCOM/binl64" >> "$GITHUB_PATH"
       - run: nix develop path:./nix#ci --command python tools/build.py
       - run: nix develop path:./nix#ci --command python tools/test_island.py
+      - run: nix develop path:./nix#ci --command python tools/build.py --locshell
+      - run: nix develop path:./nix#ci --command python tools/test_locshell.py
+      - run: python3 tools/test_saves.py

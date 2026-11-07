@@ -20,7 +20,7 @@ static void restored(void) {
  r.h.ah=3;r.h.bh=0;int86(0x10,&r,&r);assert(r.x.cx==0x040a && r.x.dx==0x0c22);
 }
 static void enter(void) {
- daSaver=1;daTimeout=1;daTimeoutTicks=18;daIdle=daNow()-40;
+ daSaver=3;daTimeout=1;daTimeoutTicks=18;daIdle=daNow()-40;
  daPoll(0);assert(daSleeping && daIsland && !isError && dsTwinkles>0);
 }
 int main(void) {
@@ -61,12 +61,12 @@ int main(void) {
  }
  for(i=0;i<3;i++)_ffree(reserve[i]);
  assert(!rename("C:\\ISLAND\\SCENE.EGA","C:\\ISLAND\\MISSING.EGA"));
- daSaver=1;daPreview();daPoll(0);assert(daSleeping && !daIsland && isError==1);
+ daSaver=3;daPreview();daPoll(0);assert(daSleeping && !daIsland && isError==1);
  daPoll(1);restored();
  assert(!rename("C:\\ISLAND\\MISSING.EGA","C:\\ISLAND\\SCENE.EGA"));
- daSaver=DA_SAVER_OFF;daPreviewChoice=1;daPreviewPending=1;daPoll(1);
+ daSaver=DA_SAVER_OFF;daPreviewChoice=3;daPreviewPending=1;daPoll(1);
  assert(!daSleeping && daPreviewPending && daSaver==DA_SAVER_OFF);
- daPoll(0);assert(daSleeping && daIsland && daSaver==1);
+ daPoll(0);assert(daSleeping && daIsland && daSaver==3);
  daPoll(1);assert(daSaver==DA_SAVER_OFF);restored();
  remove(DA_SAVER_CONFIG);f=fopen("ISLPASS.TXT","w");assert(f);fputs("PASS repeated entry, AdLib controls, FTP/key wake, IRQ/font/DAC/text/cursor/cwd restoration and missing-asset fallback\n",f);fclose(f);
  return 0;

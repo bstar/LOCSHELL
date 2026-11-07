@@ -36,6 +36,7 @@
 #include <time.h>
 
 #include "ftpcl.h"
+#include "timer.h"
 #include "ftpusr.h"
 #include "trace.h"
 
@@ -229,6 +230,7 @@ void FtpClient::startNewSession( TcpSocket *newSocket, uint32_t sessionId_p ) {
 
     
   time( &startTime );
+  sessionTicks=TIMER_GET_CURRENT();
 
   TRACE(( "Ftp (%lu) New connection from %d.%d.%d.%d:%u, cs=%p\n", sessionId,
     cs->dstHost[0], cs->dstHost[1],

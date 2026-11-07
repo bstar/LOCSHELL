@@ -8,6 +8,7 @@ DEFAULT=Path.home()/'.config/dosctl/access.json'
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 import recipes
 import operations,flows
+from saves import cli as saves_cli
 LAST_RESULT=None
 JSON_MODE=False
 
@@ -53,6 +54,7 @@ def command_main():
  global LAST_RESULT
  p=argparse.ArgumentParser(description=__doc__);p.add_argument('--credentials',type=Path);p.add_argument('--timeout',type=float,default=None)
  sub=p.add_subparsers(dest='cmd',required=True)
+ saves_cli.parser(sub)
  for name in ('put','get'):
   s=sub.add_parser(name);s.add_argument('source');s.add_argument('destination')
  for name in ('run','exec'):
@@ -78,7 +80,8 @@ def command_main():
  s=sub.add_parser('recipe');s.add_argument('name',choices=recipes.RECIPES);s.add_argument('--path',action='append');s.add_argument('--all-drives',action='store_true');s.add_argument('--deep',action='store_true');s.add_argument('--hash',action='store_true');s.add_argument('--manifest',type=Path);s.add_argument('--source',type=Path);s.add_argument('--dry-run',action='store_true')
  a=p.parse_args()
  api=sys.modules[__name__]
- if a.cmd=='resident':
+ if a.cmd=='saves':LAST_RESULT=saves_cli.handle(a)
+ elif a.cmd=='resident':
   import resident_client
   LAST_RESULT=resident_client.handle(a)
  elif a.cmd=='flow':LAST_RESULT=flows.handle(a,api)
@@ -112,7 +115,7 @@ def command_main():
     installed[name]=hashlib.sha256(read(f,'/NET/AGENT/'+name)).hexdigest()
   LAST_RESULT={'state':'completed','collected_at':recipes.timestamp(),'job':result['id'],'identity':identity,'active_ftp':active,'installed_sha256':installed,'context':'Native job; FTP stopped during memory collection. Installed hashes do not establish resident-parent version.','artifacts':str(artifact)}
   operations.save(artifact/'machine.json',LAST_RESULT);operations.history(api,'machine-identity',job=result['id'],identity=identity)
- if a.cmd in ('flow','deploy','restore','annotate','history','machine','resident'):
+ if a.cmd in ('flow','deploy','restore','annotate','history','machine','resident','saves'):
   if not JSON_MODE:print(json.dumps(LAST_RESULT,indent=2))
   return 2 if LAST_RESULT.get('state') in ('waiting','uncertain') else (1 if LAST_RESULT.get('state') in ('failed','error') else 0)
  if a.cmd=='inventory':a.cmd='recipe';a.name='inventory';a.deep=False;a.manifest=None

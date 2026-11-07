@@ -1,0 +1,268 @@
+diff --git i/src/runtime.c w/src/runtime.c
+index fa978d9..42df636 100644
+--- i/src/runtime.c
++++ w/src/runtime.c
+@@ -27,6 +27,27 @@ static unsigned char far *songs[TRACKS];
+ static unsigned song_sizes[TRACKS], song_index, song_count;
+ static unsigned track_changes;
+ static unsigned played_mask;
++#ifdef DOS_SCENES_COMPACT_MUSIC
++#define MUSIC_WINDOW 4096U
++static void (__far *music_xms_entry)(void);
++static unsigned music_xms_kb,music_xms_handle,music_xms_ok;
++static unsigned music_handles[TRACKS],music_window_base,music_in_xms;
++static unsigned char far *music_window;
++static char music_names[TRACKS][13];
++#pragma pack(push,1)
++static struct {unsigned long length;unsigned source;unsigned long source_offset;unsigned destination;unsigned long destination_offset;} music_move;
++#pragma pack(pop)
++static void music_xms_alloc(void);
++#pragma aux music_xms_alloc = "mov ah,9" "mov dx,ss:music_xms_kb" "call dword ptr ss:music_xms_entry" "mov ss:music_xms_ok,ax" "mov ss:music_xms_handle,dx" modify [ax bx cx dx]
++static void music_xms_free(void);
++#pragma aux music_xms_free = "mov ah,10" "mov dx,ss:music_xms_handle" "call dword ptr ss:music_xms_entry" modify [ax bx cx dx]
++static void music_xms_copy(void);
++#pragma aux music_xms_copy = "push ds" "push ss" "pop ds" "mov si,offset music_move" "mov ah,11" "call dword ptr ss:music_xms_entry" "mov ss:music_xms_ok,ax" "pop ds" modify [ax bx cx dx si]
++static unsigned music_byte(unsigned at);
++#define SONG_BYTE(at) music_byte(at)
++#else
++#define SONG_BYTE(at) song[at]
++#endif
+ static unsigned char opl_regs[256], opl_seen[256];
+ static unsigned char hw_regs[256];
+ static volatile unsigned long audio_events, opl_writes;
+@@ -85,13 +106,36 @@ static int save_volume(void) {
+ static unsigned char op_offsets[9]={0,1,2,8,9,10,16,17,18};
+ static volatile unsigned long ticks;
+ static unsigned long audio_due;
++#ifdef DOS_SCENES_COMPACT_MUSIC
++static void silence(void);
++static unsigned long music_real_address(void) {return ((unsigned long)FP_SEG(music_window)<<16)|FP_OFF(music_window);}
++static unsigned music_byte(unsigned at) {
++    unsigned base,n;
++    if(!music_in_xms) return song[at];
++    if(at>=song_size) return 0;
++    base=at&~(MUSIC_WINDOW-1);
++    if(base!=music_window_base) {
++        n=song_size-base;if(n>MUSIC_WINDOW)n=MUSIC_WINDOW;
++        music_move.length=n;music_move.source=music_handles[song_index];music_move.source_offset=base;
++        music_move.destination=0;music_move.destination_offset=music_real_address();music_xms_copy();
++        if(!music_xms_ok){audio_fault=1;silence();return 0;}
++        music_window_base=base;
++    }
++    return music_window[at-base];
++}
++#endif
+ static void select_song(unsigned index) {
+     unsigned i;
+     for(i=0;i<256;i++) { opl_regs[i]=0; opl_seen[i]=0; }
+     song_index=index;
+     played_mask|=1U<<index;
+-    song=songs[index]; song_size=song_sizes[index]; song_pos=0;
+-    song_wait=song_size ? song[0]|((unsigned)song[1]<<8) : 0;
++    #ifdef DOS_SCENES_COMPACT_MUSIC
++    song=music_in_xms?music_window:songs[index];music_window_base=65535U;
++#else
++    song=songs[index];
++#endif
++    song_size=song_sizes[index]; song_pos=0;
++    song_wait=song_size ? SONG_BYTE(0)|((unsigned)SONG_BYTE(1)<<8) : 0;
+     audio_due=ticks+song_wait;
+ }
+ static unsigned long bios_phase;
+@@ -219,7 +263,7 @@ static int detect_opl(void) {
+     b=inp(0x388); opl(4,0x60); opl(4,0x80);
+     return (a&0xe0)==0 && (b&0xe0)==0xc0;
+ }
+-static unsigned delay_at(unsigned p) { return song[p]|((unsigned)song[p+1]<<8); }
++static unsigned delay_at(unsigned p) { return SONG_BYTE(p)|((unsigned)SONG_BYTE(p+1)<<8); }
+ static void audio_poll(void) {
+     unsigned count=0;
+     unsigned long now,due,late;
+@@ -232,7 +276,7 @@ static void audio_poll(void) {
+                 audio_fault=1; silence(); break;
+             }
+             audio_events++;
+-            if(!muted) music_opl(song[song_pos+2],song[song_pos+3]);
++            if(!muted) music_opl(SONG_BYTE(song_pos+2),SONG_BYTE(song_pos+3));
+             song_pos+=4;
+             if(song_pos>=song_size) {
+                 due=audio_due;
+@@ -291,7 +335,7 @@ static void log_audio(const char *reason,unsigned long frames,int key) {
+         levels[i*2]=hw_regs[0x40+op_offsets[i]];
+         levels[i*2+1]=hw_regs[0x43+op_offsets[i]];
+     }
+-    if(size>=4 && pos<=size-4) { next_reg=song[pos+2]; next_val=song[pos+3]; }
++    if(size>=4 && pos<=size-4) { next_reg=SONG_BYTE(pos+2); next_val=SONG_BYTE(pos+3); }
+     _enable();
+     fprintf(audio_log,"%s,%lu,%lu,%lu,%lu,%lu,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%d",
+         reason,t,frames,bios,events,writes,track,pos,size,wait,level,mute,
+@@ -520,6 +564,9 @@ static void load_meteor(unsigned n,char *name) {
+ static unsigned char far *cloud;
+ static unsigned cw,ch;
+ static unsigned char far *cloud_shifted[8];
++#ifdef DOS_SCENES_COMPACT_CLOUD
++static unsigned cloud_cached_shift;
++#endif
+ static int cloud_origin;
+ static unsigned cloud_top;
+ static unsigned cloud_spacing=870,cloud_mul=41,cloud_div=6244;
+@@ -530,12 +577,24 @@ static void prepare_cloud(void) {
+     if(!cloud) return;
+     cloud_bytes=(cw+14)/8;
+     if((unsigned long)cloud_bytes*ch*5>60000UL) return;
+-    for(shift=0;shift<8;shift++) {
++    for(shift=0;shift<
++#ifdef DOS_SCENES_COMPACT_CLOUD
++        1
++#else
++        8
++#endif
++        ;shift++) {
+         cloud_shifted[shift]=_fmalloc(cloud_bytes*ch*5);
+         if(!cloud_shifted[shift]) return;
+         _fmemset(cloud_shifted[shift],0,cloud_bytes*ch*5);
+     }
+-    for(shift=0;shift<8;shift++) for(y=0;y<ch;y++) for(x=0;x<cw;x++) {
++#ifdef DOS_SCENES_COMPACT_CLOUD
++    cloud_cached_shift=0;
++    for(shift=0;shift<1;shift++)
++#else
++    for(shift=0;shift<8;shift++)
++#endif
++    for(y=0;y<ch;y++) for(x=0;x<cw;x++) {
+         c=cloud[8+y*cw+x]; if(c==255) continue;
+         offset=y*cloud_bytes+(x+shift)/8;
+         bit=128>>((x+shift)&7); dst=cloud_shifted[shift]+offset;
+@@ -545,21 +604,54 @@ static void prepare_cloud(void) {
+ }
+ static void clouds(unsigned long t) {
+     int left,bx,screenx; unsigned shift,y,x,p,off,mask,src;
++#ifdef DOS_SCENES_COMPACT_CLOUD
++    unsigned char far *cloud_pixels;
++    if(!cloud_shifted[0] || !sky) return;
++#else
+     if(!cloud_shifted[7] || !sky) return;
++#endif
+     /* Motion is measured on the registered native5x grid, independent of frame rate. */
+     left=(int)((cloud_origin+(int)cloud_spacing-(int)(((t%cloud_cycle)*cloud_mul)/cloud_div))%(int)cloud_spacing);
+     if(left>=320) left-=cloud_spacing;
+     shift=(unsigned)left&7; bx=(left-(int)shift)/8;
++#ifdef DOS_SCENES_COMPACT_CLOUD
++    cloud_pixels=cloud_shifted[0];
++    if(cloud_cached_shift!=shift) {
++        int delta=(int)shift-(int)cloud_cached_shift;
++        unsigned distance=delta<0?-delta:delta;
++        /* Keep one packed orientation. The seven padding pixels make every
++           shift reversible, so changing orientation never loses cloud data. */
++        for(p=0;p<5;p++) for(y=0;y<ch;y++) {
++            unsigned char neighbor=0;
++            src=(p*ch+y)*cloud_bytes;
++            for(x=0;x<cloud_bytes;x++) {
++                unsigned at=delta>0?x:cloud_bytes-1-x;
++                unsigned char current=cloud_pixels[src+at];
++                cloud_pixels[src+at]=delta>0?
++                    (current>>distance)|(neighbor<<(8-distance)):
++                    (current<<distance)|(neighbor>>(8-distance));
++                neighbor=current;
++            }
++            audio_poll();
++        }
++        cloud_cached_shift=shift;
++    }
++#else
++#define cloud_pixels cloud_shifted[shift]
++#endif
+     for(y=0;y<ch;y++) { audio_poll(); for(x=0;x<cloud_bytes;x++) {
+         screenx=bx+x; if(screenx<0 || screenx>=40) continue;
+         off=(cloud_top+y)*40+screenx;
+         src=y*cloud_bytes+x;
+-        mask=cloud_shifted[shift][src]&sky[off];
++        mask=cloud_pixels[src]&sky[off];
+         if(mask) for(p=0;p<4;p++) {
+             unsigned char far *d=frame+p*PLANE+off;
+-            *d=(*d&~mask)|(cloud_shifted[shift][src+(p+1)*ch*cloud_bytes]&mask);
++            *d=(*d&~mask)|(cloud_pixels[src+(p+1)*ch*cloud_bytes]&mask);
+         }
+     } }
++#ifndef DOS_SCENES_COMPACT_CLOUD
++#undef cloud_pixels
++#endif
+ }
+ static void free_scene(void) {
+     unsigned i;
+@@ -568,6 +660,11 @@ static void free_scene(void) {
+     if(frame) { _ffree(frame); frame=0; }
+     if(cloud) { _ffree(cloud); cloud=0; }
+     for(i=0;i<TRACKS;i++) if(songs[i]) { _ffree(songs[i]); songs[i]=0; }
++#ifdef DOS_SCENES_COMPACT_MUSIC
++    music_in_xms=0;
++    if(music_window){_ffree(music_window);music_window=0;}
++    for(i=0;i<TRACKS;i++)if(music_handles[i]){music_xms_handle=music_handles[i];music_xms_free();music_handles[i]=0;}
++#endif
+     for(i=0;i<8;i++) if(cloud_shifted[i]) { _ffree(cloud_shifted[i]); cloud_shifted[i]=0; }
+     for(i=0;i<2;i++) if(meteor[i]) { _ffree(meteor[i]); meteor[i]=0; }
+     if(display_palette) { _ffree(display_palette); display_palette=0; }
+@@ -631,9 +728,48 @@ static int prepare_details(void) {
+     }
+     return at==details_size;
+ }
++#ifdef DOS_SCENES_COMPACT_MUSIC
++static int music_xms_available(void) {
++    union REGS r;struct SREGS sr;
++    r.x.ax=0x4300;int86(0x2f,&r,&r);if(r.h.al!=0x80)return 0;
++    r.x.ax=0x4310;int86x(0x2f,&r,&r,&sr);
++    music_xms_entry=(void(__far*)(void))MK_FP(sr.es,r.x.bx);return 1;
++}
++static int load_xms_playlist(FILE *playlist) {
++    char line[80],name[13],*p;FILE *f;long length;unsigned i,at,n;
++    while(fgets(line,sizeof line,playlist)) {
++        if(sscanf(line,"%12s",name)!=1||name[0]=='#')continue;
++        if(song_count>=TRACKS){fclose(playlist);return 0;}
++        for(p=name;*p;p++)if(!isalnum((unsigned char)*p)&&*p!='.'&&*p!='_'){fclose(playlist);return 0;}
++        f=fopen(asset_name(name),"rb");if(!f){fclose(playlist);return 0;}
++        fseek(f,0,SEEK_END);length=ftell(f);fclose(f);
++        if(length<=0||length>MUSIC_MAX||length%4){fclose(playlist);return 0;}
++        strcpy(music_names[song_count],name);song_sizes[song_count++]=(unsigned)length;
++    }
++    fclose(playlist);if(!song_count)return 1;
++    music_window=_fmalloc(MUSIC_WINDOW);if(!music_window)return 0;
++    for(i=0;i<song_count;i++) {
++        music_xms_kb=(song_sizes[i]+1023U)/1024U;music_xms_alloc();
++        if(!music_xms_ok)return 0;music_handles[i]=music_xms_handle;
++        f=fopen(asset_name(music_names[i]),"rb");if(!f)return 0;
++        for(at=0;at<song_sizes[i];at+=n) {
++            n=song_sizes[i]-at;if(n>MUSIC_WINDOW)n=MUSIC_WINDOW;
++            if(fread(music_window,1,n,f)!=n){fclose(f);return 0;}
++            music_move.length=n;music_move.source=0;music_move.source_offset=music_real_address();
++            music_move.destination=music_handles[i];music_move.destination_offset=at;music_xms_copy();
++            if(!music_xms_ok){fclose(f);return 0;}
++        }
++        fclose(f);
++    }
++    music_in_xms=1;music_window_base=65535U;return 1;
++}
++#endif
+ static int load_playlist(void) {
+     FILE *f=fopen(asset_name("PLAYLIST.CFG"),"r");char line[80],name[13],*p;unsigned size;
+     if(!f) return 1;
++#ifdef DOS_SCENES_COMPACT_MUSIC
++    if(music_xms_available())return load_xms_playlist(f);
++#endif
+     while(fgets(line,sizeof(line),f)) {
+         if(sscanf(line,"%12s",name)!=1 || name[0]=='#') continue;
+         if(song_count>=TRACKS) { fclose(f);return 0; }
+@@ -696,7 +832,13 @@ static int load_scene(unsigned start_track) {
+     }
+     prepare_cloud();
+     if(!prepare_details()) return 0;
+-    if(cloud && cloud_shifted[7]) { _ffree(cloud); cloud=0; }
++    if(cloud && cloud_shifted[
++#ifdef DOS_SCENES_COMPACT_CLOUD
++        0
++#else
++        7
++#endif
++        ]) { _ffree(cloud); cloud=0; }
+     load_meteor(0,"STAR1.BIN");load_meteor(1,"STAR2.BIN");
+     if(!load_playlist()) return 0;
+     if(song_count) select_song((start_track>=1 && start_track<=song_count)?start_track-1:0);
