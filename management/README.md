@@ -1,5 +1,10 @@
 # DOS job management
 
+For everyday use, start with the [simple user guide](../docs/USER-GUIDE.md).
+For assisted installations/configuration changes, use the
+[agent guide](../docs/AGENT-GUIDE.md). This page is the detailed controller and
+operations reference; its dated machine measurements are historical examples.
+
 `dosctl` runs trusted scripts/programs on the DOS PC through mTCP. No SSH gateway,
 TSR networking or interactive remote console is installed. FTP disconnects during
 execution and returns afterward. BIOS/direct-video output is not captured.

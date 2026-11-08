@@ -1,6 +1,43 @@
 LOC SHELL 2.2
 =============
 
+START HERE
+----------
+LOC SHELL is your DOS game menu and a way to receive files from a modern PC.
+An agent is optional. You can use the menu and send files yourself.
+
+1. Start C:\DOSSHELL\LOCSHELL.BAT. Press F2 for Home.
+2. Press G for Games. Choose a game with the arrows, then press Enter.
+3. Quit through the game's own menu. LOC SHELL and FTP return afterwards.
+
+To add a game: unpack it on the modern PC, connect with an FTP client and send
+the complete folder to a new games directory. Wait for all transfers to finish.
+On the old PC, use Edit -> Add, enter its title and use the Run App Browse
+button to choose its real start file. Choose OK. Configure its sound if needed,
+disconnect the FTP client, then try the game. Copying alone does not add it
+to the menu. Sending a ZIP does not unpack it or run an installer.
+
+Home shows the FTP address, incoming files, recent changes and active jobs.
+Leave it open to receive updates. FTP pauses while a game or DOS job runs.
+An updated setting normally applies when its program next starts; boot/driver
+changes may need a reboot. A shell update can queue its own restart after
+connections close and edits finish. Do not reboot just because a helper timed
+out: the submitted job may still be running.
+
+Green check / Runs is a memory guide, not a guarantee about every game feature.
+F4 explains memory, F7 then L records one playing run, F9 shows launch problems.
+Home's backup card reports dated backups. Automatic save sync is not active.
+
+Simple guide (modern computer):
+https://github.com/bstar/LOCSHELL/blob/main/docs/USER-GUIDE.md
+Game installation, with exact connection and menu steps:
+https://github.com/bstar/LOCSHELL/blob/main/docs/INSTALL-GAMES.md
+Using an agent, including requests you can copy:
+https://github.com/bstar/LOCSHELL/blob/main/docs/AGENT-GUIDE.md
+
+DETAILED REFERENCE
+------------------
+
 Start C:\DOSSHELL\LOCSHELL.BAT. LOCSHELL.EXE also enters the same launcher
 when opened directly. The catalogue, FTP server, client/transfer views,
 activity history, screensavers and mTCP tools share the LOC SHELL interface.

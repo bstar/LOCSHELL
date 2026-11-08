@@ -1,5 +1,12 @@
 # LOC SHELL
 
+**Looking for instructions rather than build details?** Read the
+[simple user guide](../docs/USER-GUIDE.md),
+[game installation walkthrough](../docs/INSTALL-GAMES.md), or
+[agent guide](../docs/AGENT-GUIDE.md). Initial setup has its own
+[step-by-step page](../docs/SETUP.md). This page is the technical build and
+installation reference.
+
 LOC SHELL combines a DOS game/application catalogue, the mTCP FTP server,
 network controls, screensavers and standalone mTCP utility launchers in one
 80×25 interface. FTP continues polling while the user browses and edits; it

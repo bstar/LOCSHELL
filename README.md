@@ -4,6 +4,31 @@
 (LoC)**, maintained by **bstar**. It combines a memory-aware catalogue, a
 full-width Home dashboard, FTP management, network tools and screensavers.
 
+Use it to play your DOS games and receive game files or configuration changes
+from a modern computer over your local network. A connected agent can also
+carry out maintenance jobs on the DOS PC.
+
+## Start here
+
+| What would you like to do? | Read this |
+| --- | --- |
+| Use it myself, without an agent | [Simple user guide](docs/USER-GUIDE.md) |
+| Have an agent help me | [Agent guide, with messages to copy](docs/AGENT-GUIDE.md) |
+| Put a game on my retro PC | [Step-by-step game installation](docs/INSTALL-GAMES.md) |
+| Set up a PC for the first time | [First-time setup](docs/SETUP.md) |
+
+For daily use: **start LOC SHELL → F2 for Home → G for Games → select a game →
+Enter**. Quit the game normally to return. To send files, leave LOC SHELL running
+with FTP **Running**. Uploading a game folder and adding it to the menu are
+separate steps; the installation guide walks through both.
+
+![LOC SHELL Home receiving game files and sending a file back, with live progress and file history](docs/assets/dashboard-transfers.gif)
+
+*Actual DOS dashboard in an emulator, transferring sample files. Transfers are
+paced so the progress is readable. [How this was recorded](docs/assets/README.md).*
+
+## About the project
+
 The standalone project is [bstar/LOCSHELL](https://github.com/bstar/LOCSHELL).
 Its networking foundation is **Michael B. Brutman's mTCP**. Original mTCP
 source, copyright notices, licenses and Git history are retained. See
@@ -41,7 +66,7 @@ nix develop path:./nix --command python tools/test_locshell.py
 python management/dosctl.py --help
 ```
 
-See the [management guide](management/README.md) for installation, credentials,
+See the [management reference](management/README.md) for installation, credentials,
 commands, testing, limitations and physical acceptance notes. The
 [LOC SHELL guide](locshell/README.md) describes the full install layout and
 headless acceptance tests. Builds produce `LOCSHELL.EXE`, its supervisor,
