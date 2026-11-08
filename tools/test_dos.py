@@ -8,8 +8,10 @@ fixtures.mkdir(parents=True,exist_ok=True)
 int main(void){FILE *f=fopen("C:\\LOCSHELL\\NET\\ONCE","r");if(f){fclose(f);return 1;}f=fopen("C:\\LOCSHELL\\NET\\ONCE","w");fclose(f);return 0;}'''+"\n")
 (base/'child.c').write_text(r'''#include <stdio.h>
 int main(void){puts("child output");fprintf(stderr,"child stderr\n");return 37;}'''+"\n")
+# Reuse the supplied SDK inside Nix/CI instead of fetching a second toolchain.
+compiler=['wcl'] if shutil.which('wcl') else ['nix','--extra-experimental-features','nix-command flakes','develop','path:'+str(R/'nix'),'--command','wcl']
 for source,name in [('fake.c','FAKE.EXE'),('child.c','CHILD.EXE')]:
- subprocess.run(['nix','--extra-experimental-features','nix-command flakes','develop','path:'+str(R/'nix'),'--command','wcl','-q','-bt=dos','-0','-ms','-fe='+str(fixtures/name),str(base/source)],cwd=base,check=True)
+ subprocess.run(compiler+['-q','-bt=dos','-0','-ms','-fe='+str(fixtures/name),str(base/source)],cwd=base,check=True)
 for name in ['DOSAGENT.EXE','DOSINFO.EXE']:shutil.copyfile(B/name,fixtures/name)
 box=os.environ.get('DOSBOX',shutil.which('dosbox-x') or 'dosbox-x')
 for name,kind,program,expected in [('native','EXE','C:\\LOCSHELL\\NET\\CHILD.EXE','37'),('missing','EXE','C:\\ABSENT.EXE','-1'),('batch','BAT','C:\\LOCSHELL\\NET\\JOBS\\LOCK\\SCRIPT.BAT',None),('identity','EXE','C:\\LOCSHELL\\NET\\DOSINFO.EXE','0')]:
