@@ -55,7 +55,7 @@ static int mouse_visible, cursor_visible = -1, want_cursor, cursor_x, cursor_y;
 static int drawn_cursor_x = -1, drawn_cursor_y = -1;
 static int main_valid, drawn_sel, drawn_scroll, drawn_nav;
 static char drawn_notice[112];
-#ifdef DOSSHELL_RENDER_TEST
+#ifdef LOCSHELL_RENDER_TEST
 static unsigned long video_words_written, catalog_rebuilds;
 #endif
 static int mx, my, click, mouse_row = -1;
@@ -239,7 +239,7 @@ static void present(void) {
             if (screen[i] != displayed[i]) {
                 vram[i] = screen[i];
                 displayed[i] = screen[i];
-#ifdef DOSSHELL_RENDER_TEST
+#ifdef LOCSHELL_RENDER_TEST
                 video_words_written++;
 #endif
             }
@@ -265,7 +265,7 @@ static void present(void) {
     }
 }
 static int event(void) {
-#ifdef DOSSHELL_INPUT_TEST
+#ifdef LOCSHELL_INPUT_TEST
     extern int ds_test_event(void);
     return ds_test_event();
 #else
@@ -280,7 +280,7 @@ static int event(void) {
             else if(memory_context_dirty==1){memory_context_dirty=2;main_valid=0;if(!notify)return -2;}
         }
         status_poll();
-#ifndef DOSSHELL_RENDER_TEST
+#ifndef LOCSHELL_RENDER_TEST
         if (memory_loaded) {
             unsigned long now = *(unsigned long __far *)MK_FP(0x40,0x6c);
             if (now-memory_tick >= 18UL) {
@@ -433,7 +433,7 @@ static void rebuild(void) {
     int i, j;
     const char *s;
     main_valid = 0;
-#ifdef DOSSHELL_RENDER_TEST
+#ifdef LOCSHELL_RENDER_TEST
     catalog_rebuilds++;
 #endif
     for (i=0;i<lb_count;i++){memory_ids[i]=lb_identity(lb_entries[i]);memory_profiles[i]=dm_find(memory_ids[i]);}
@@ -1221,7 +1221,7 @@ static int disabled(int a) {
             current_item() < 0) ||
            (a == ACT_BACK && !(grouping >= 0 && inside));
 }
-static void launch_report(void){FILE*f;char a[100]="No launch report yet.",b[160]="";const char*lines[5];f=fopen("C:\\DOSSHELL\\LAUNCH.RES","r");if(f){fgets(a,sizeof a,f);fgets(b,sizeof b,f);fclose(f);}a[strcspn(a,"\r\n")]=0;b[strcspn(b,"\r\n")]=0;lines[0]=a;lines[1]="";lines[2]=b;lines[3]=strlen(b)>65?b+65:"";lines[4]="Full history: C:\\DOSSHELL\\LAUNCH.LOG";text_page("Last launch report",lines,5);}
+static void launch_report(void){FILE*f;char a[100]="No launch report yet.",b[160]="";const char*lines[5];f=fopen("C:\\LOCSHELL\\LAUNCH.RES","r");if(f){fgets(a,sizeof a,f);fgets(b,sizeof b,f);fclose(f);}a[strcspn(a,"\r\n")]=0;b[strcspn(b,"\r\n")]=0;lines[0]=a;lines[1]="";lines[2]=b;lines[3]=strlen(b)>65?b+65:"";lines[4]="Full history: C:\\LOCSHELL\\LAUNCH.LOG";text_page("Last launch report",lines,5);}
 static int run_commands(const char *s) {
     int item=current_item();
     return run_context(s,learning_run?"LEARN":"RUN",item<0?0:lb_identity(lb_entries[item]),item<0?"Selected command":lb_entries[item]->title);
@@ -1231,18 +1231,18 @@ static int run_context(const char*s,const char*kind,unsigned long id,const char*
         info("This application does not have any commands assigned to it.");
         return 0;
     }
-    if(access("C:\\DOSSHELL\\LEARN.REQ",0)==0){info("Pending learning request: use F7 Reset before launching another session.");return 0;}
+    if(access("C:\\LOCSHELL\\LEARN.REQ",0)==0){info("Pending learning request: use F7 Reset before launching another session.");return 0;}
     strncpy(pending_job,name,sizeof pending_job-1);pending_job[sizeof pending_job-1]=0;
     if (!network_wait()){pending_job[0]=0;return 0;}
     pending_job[0]=0;
     if(learning_run){int item=current_item();if(item<0||!dl_prepare(lb_identity(lb_entries[item]),s)){ds_net_drain(1);info("Cannot prepare learning. Resolve an earlier LEARN.REQ before retrying.");return 0;}}
 
     if (!lb_write_run("RUN.BAT", s)) {
-        if(learning_run)remove("C:\\DOSSHELL\\LEARN.REQ");ds_net_drain(1);
+        if(learning_run)remove("C:\\LOCSHELL\\LEARN.REQ");ds_net_drain(1);
         info(lb_error);
         return 0;
     }
-    if(!lp_prepare(kind,id)){if(learning_run)remove("C:\\DOSSHELL\\LEARN.REQ");ds_net_drain(1);info("Could not prepare a validated launch request.");return 0;}
+    if(!lp_prepare(kind,id)){if(learning_run)remove("C:\\LOCSHELL\\LEARN.REQ");ds_net_drain(1);info("Could not prepare a validated launch request.");return 0;}
     launch_app = quit_app = 1;
     return 1;
 }
@@ -1254,7 +1254,7 @@ static void action(int a) {
     int i, j;
     char msg[240], path[160], cmd[512], *p, *name;
     LBEntry *old;
-    const char *about[] = {"LOC SHELL 2.2",
+    const char *about[] = {"LOC SHELL 2.3",
                            "",
                            "LoSs oF CoNtRoL",
                            "Sysop: bstar",
@@ -1266,7 +1266,7 @@ static void action(int a) {
                            "Start with LOCSHELL.BAT for launch-and-return.",
                            "",
                            "Press Enter or Escape to return."};
-    const char *log[] = {"LOC SHELL 2.2",
+    const char *log[] = {"LOC SHELL 2.3",
                          "",
                          "Initial feature-parity build:",
                          "- Existing catalogue and multiline commands",
@@ -1491,7 +1491,7 @@ static int menu(int root) {
     }
 }
 static void prefs_load(void) {
-    FILE *f = fopen("DOSSHELL.CFG", "rt");
+    FILE *f = fopen("LOCSHELL.CFG", "rt");
     char line[160];
     unsigned long selected_id = 0;
     int i,dashboard_seen=0;
@@ -1530,25 +1530,25 @@ static void prefs_load(void) {
     rebuild();
 }
 static int prefs_save(void) {
-    FILE *f = fopen("DOSSHELL.NEW", "wt");
+    FILE *f = fopen("LOCSHELL.NEW", "wt");
     int i = current_item(), ok;
     if (!f)
         return 0;
-    fprintf(f, "DOS SHELL 1\nDASHBOARD=1\nVIEW=%d\nLOCK=%d\nSORT=%d\nGROUP=%d\nINSIDE=%d\nVALUE=%s\nSELECT=%08lx\n",
+    fprintf(f, "LOC SHELL 1\nDASHBOARD=1\nVIEW=%d\nLOCK=%d\nSORT=%d\nGROUP=%d\nINSIDE=%d\nVALUE=%s\nSELECT=%08lx\n",
             shell_view, locked, sort_order, grouping, inside, group_value,
             i < 0 ? 0UL : lb_identity(lb_entries[i]));
     ok = !ferror(f);
     if (fclose(f))
         ok = 0;
     if (!ok) {
-        remove("DOSSHELL.NEW");
+        remove("LOCSHELL.NEW");
         return 0;
     }
-    remove("DOSSHELL.BAK");
-    if (access("DOSSHELL.CFG", 0) == 0 && rename("DOSSHELL.CFG", "DOSSHELL.BAK"))
+    remove("LOCSHELL.BAK");
+    if (access("LOCSHELL.CFG", 0) == 0 && rename("LOCSHELL.CFG", "LOCSHELL.BAK"))
         return 0;
-    if (rename("DOSSHELL.NEW", "DOSSHELL.CFG")) {
-        rename("DOSSHELL.BAK", "DOSSHELL.CFG");
+    if (rename("LOCSHELL.NEW", "LOCSHELL.CFG")) {
+        rename("LOCSHELL.BAK", "LOCSHELL.CFG");
         return 0;
     }
     return 1;
@@ -1622,11 +1622,11 @@ int main(int argc, char **argv) {
     dm_load("MEMORY.TSV");
     dm_query(); memory_loaded=1; memory_tick=*(unsigned long __far*)MK_FP(0x40,0x6c);
     prefs_load();
-    {FILE*f=fopen("C:\\DOSSHELL\\LEARN.ARM","r");if(f){fscanf(f,"%lx",&learn_next);fclose(f);remove("C:\\DOSSHELL\\LEARN.ARM");}}
+    {FILE*f=fopen("C:\\LOCSHELL\\LEARN.ARM","r");if(f){fscanf(f,"%lx",&learn_next);fclose(f);remove("C:\\LOCSHELL\\LEARN.ARM");}}
     dl_index();
     rebuild();
     if(!screen_active)init_screen();
-    {FILE*f=fopen("C:\\DOSSHELL\\LAUNCH.RES","r");char stage[100],detail[160];if(f){if(fgets(stage,sizeof stage,f)){stage[strcspn(stage,"\r\n")]=0;strncpy(notice,stage,sizeof notice-1);if(access("C:\\DOSSHELL\\LAUNCH.ASK",0)==0){if(fgets(detail,sizeof detail,f))info(detail);remove("C:\\DOSSHELL\\LAUNCH.ASK");}}fclose(f);}}
+    {FILE*f=fopen("C:\\LOCSHELL\\LAUNCH.RES","r");char stage[100],detail[160];if(f){if(fgets(stage,sizeof stage,f)){stage[strcspn(stage,"\r\n")]=0;strncpy(notice,stage,sizeof notice-1);if(access("C:\\LOCSHELL\\LAUNCH.ASK",0)==0){if(fgets(detail,sizeof detail,f))info(detail);remove("C:\\LOCSHELL\\LAUNCH.ASK");}}fclose(f);}}
     learning_return();
     while (!quit_app) {
         main_draw(0);
@@ -1753,7 +1753,7 @@ int main(int argc, char **argv) {
         lb_clear();
         return 2;
     }
-    {FILE*f;if(learn_next){f=fopen("C:\\DOSSHELL\\LEARN.ARM","w");if(f){fprintf(f,"%08lx\n",learn_next);fclose(f);}}else remove("C:\\DOSSHELL\\LEARN.ARM");}
+    {FILE*f;if(learn_next){f=fopen("C:\\LOCSHELL\\LEARN.ARM","w");if(f){fprintf(f,"%08lx\n",learn_next);fclose(f);}}else remove("C:\\LOCSHELL\\LEARN.ARM");}
     finish_screen();
     groups_clear();
     lb_clear();

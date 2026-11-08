@@ -25,7 +25,7 @@ python tools/test_saves.py
 
 The pinned toolchain supplies Open Watcom, NASM, Python, patch and DOSBox-X.
 The first command builds `build/LOCSHELL.EXE`, `DOSAGENT.EXE`, `LOCHAND.EXE`,
-`MEMWATCH.COM`, `MEMLEARN.EXE`, the standalone `DSHELL.EXE` fallback and
+`MEMWATCH.COM`, `MEMLEARN.EXE`, the standalone `LOCSOLO.EXE` fallback and
 `DOSINFO.EXE`, plus DOS-format help and batch wrappers. The second builds the
 original mTCP utilities and NetDrive support under `build/suite/`.
 Without `--locshell`, `tools/build.py` builds the classic `FTPSRV.EXE` interface.
@@ -33,7 +33,7 @@ Without `--locshell`, `tools/build.py` builds the classic `FTPSRV.EXE` interface
 the frontend source directory; `DOS_SHELL_TEST=1` enables emulator-only hooks.
 Never install a test-hook build on a real machine.
 
-The bundled frontend is in `src/dosshell/`. The network adapter lives in
+The bundled frontend is in `src/locshell/`. The network adapter lives in
 `../src/APPS/FTPSRV/LOCFTP.H` and `../management/NETVIEWS.H`. The scene build
 applies `../third_party/dos-scenes-compact.patch` to a private build copy of
 the pinned MIT runtime. This preserves upstream while retaining the tested
@@ -44,11 +44,11 @@ license and explanation under `../third_party/watcom-heap/`.
 ## Install layout
 
 For an existing managed installation, install the shell and launch helpers in
-`C:\DOSSHELL`, the supervisor in `C:\NET\AGENT`, and standalone network tools
-in `C:\NET\BIN`. Keep the existing `C:\NET\MTCP.CFG`, credentials, profile,
+`C:\LOCSHELL`, the supervisor in `C:\LOCSHELL\NET\AGENT`, and standalone network tools
+in `C:\LOCSHELL\NET\BIN`. Keep the existing `C:\LOCSHELL\NET\MTCP.CFG`, credentials, profile,
 packet driver and DOS boot configuration. `LOCSHELL.BAT` starts the combined
 application through the supervisor. A compatible Island scene pack belongs in
-`C:\ISLAND`; it is separate from the executable and the application falls back
+`C:\LOCSHELL\ISLAND`; it is separate from the executable and the application falls back
 when assets are unavailable. See the root README for scene credits and packing.
 
 Machine catalogues, memory requirements and learned observations are private
@@ -58,7 +58,7 @@ user's catalogue. A catalogue entry has a title, optional `---GENRE---`,
 `---STATUS---` and `---FAVORITE---` lines, followed by DOS launch commands.
 `---CONFIG---` introduces setup commands. A blank line ends an entry. Unknown
 metadata is retained. `LIBRARY.TXT`, `MEMORY.TSV`, `LEARN.DAT`, `RECENT.TXT`
-and `DOSSHELL.CFG` must be preserved during upgrades.
+and `LOCSHELL.CFG` must be preserved during upgrades.
 
 ## Home dashboard
 
@@ -86,7 +86,7 @@ managed job handoffs use the existing supervisor path.
 
 ```sh
 dosctl saves --vault /path/to/private/vault dashboard --output /tmp/VAULT.STA
-dosctl put /tmp/VAULT.STA /DOSSHELL/VAULT.STA
+dosctl put /tmp/VAULT.STA /LOCSHELL/VAULT.STA
 ```
 
 The first command opens the vault read-only and checks published snapshot

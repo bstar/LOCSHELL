@@ -41,7 +41,7 @@ static unsigned long hashlayout(unsigned long h){union REGS r;struct SREGS s;uns
 /* Resolve only simple catalog launch blocks. Complex shell syntax is partial.
    Executable bytes, local CFG/INI/SET files and boot/sound context are hashed.
    Missing or ambiguous targets return 0 and cannot receive a learned fit. */
-static unsigned long signature(const char*commands,int legacy,const char*boot){unsigned long h=2166136261UL;const char *names[]={"BLASTER","SOUND","ULTRASND","CONFIG","MACHINE"};unsigned i,n=0,targets=0;const char*s;char drive='C',cwd[128]="\\DOSSHELL",line[256],path[260],token[130],*p;struct find_t ent;const char*patterns[]={"*.CFG","*.INI","*.SET","CONFIG.*"};
+static unsigned long signature(const char*commands,int legacy,const char*boot){unsigned long h=2166136261UL;const char *names[]={"BLASTER","SOUND","ULTRASND","CONFIG","MACHINE"};unsigned i,n=0,targets=0;const char*s;char drive='C',cwd[128]="\\LOCSHELL",line[256],path[260],token[130],*p;struct find_t ent;const char*patterns[]={"*.CFG","*.INI","*.SET","CONFIG.*"};
  if(!legacy)h=hash(h,(const unsigned char*)"LOC RAM 2",9);
  h=hash(h,(const unsigned char*)commands,strlen(commands));
  for(i=0;i<5;i++){s=getenv(names[i]);if(s)h=hash(h,(const unsigned char*)s,strlen(s));h=hash(h,(const unsigned char*)"\0",1);}
@@ -93,7 +93,7 @@ static DLCache *dl_at(unsigned i){return observed[i/DL_BLOCK]+i%DL_BLOCK;}
 void dl_index(void){FILE*f;DLRecord r;unsigned i,n;unsigned long order=0;
  for(i=0;i<DM_MAX/DL_BLOCK;i++){free(observed[i]);observed[i]=NULL;}
  observed_count=0;index_ready=1;index_error=0;
- f=fopen("C:\\DOSSHELL\\LEARN.DAT","rb");if(!f)return;
+ f=fopen("C:\\LOCSHELL\\LEARN.DAT","rb");if(!f)return;
  while((n=fread(&r,1,sizeof r,f))!=0){DLCache*c;
   if(n!=sizeof r||r.stats.version!=1||r.stats.size!=sizeof(DLStats)){index_error=1;break;}
   for(i=0;i<observed_count;i++)if(dl_at(i)->record.id==r.id&&dl_at(i)->record.signature==r.signature)break;
@@ -110,17 +110,17 @@ void dl_index(void){FILE*f;DLRecord r;unsigned i,n;unsigned long order=0;
  if(ferror(f))index_error=1;fclose(f);
 }
 int dl_has(unsigned long id){unsigned i;if(!index_ready)dl_index();for(i=0;i<observed_count;i++)if(dl_at(i)->record.id==id)return 1;return 0;}
-int dl_latest(unsigned long id,DLRecord*out){FILE*f;DLRecord r;int found=0;f=fopen("C:\\DOSSHELL\\LEARN.DAT","rb");if(!f)return 0;while(fread(&r,sizeof r,1,f)==1){if(r.id==id&&r.stats.version==1&&r.stats.size==sizeof(DLStats)){*out=r;found=1;}}fclose(f);return found;}
-int dl_append(const DLRecord*r){FILE*src,*dst;DLRecord old;int ok=1,exists=0;src=fopen("C:\\DOSSHELL\\LEARN.DAT","rb");if(src)exists=1;
- dst=fopen("C:\\DOSSHELL\\LEARN.TMP","wb");if(!dst){if(src)fclose(src);return 0;}
+int dl_latest(unsigned long id,DLRecord*out){FILE*f;DLRecord r;int found=0;f=fopen("C:\\LOCSHELL\\LEARN.DAT","rb");if(!f)return 0;while(fread(&r,sizeof r,1,f)==1){if(r.id==id&&r.stats.version==1&&r.stats.size==sizeof(DLStats)){*out=r;found=1;}}fclose(f);return found;}
+int dl_append(const DLRecord*r){FILE*src,*dst;DLRecord old;int ok=1,exists=0;src=fopen("C:\\LOCSHELL\\LEARN.DAT","rb");if(src)exists=1;
+ dst=fopen("C:\\LOCSHELL\\LEARN.TMP","wb");if(!dst){if(src)fclose(src);return 0;}
  if(src){while(fread(&old,sizeof old,1,src)==1){if(old.stats.version!=1||old.stats.size!=sizeof(DLStats)){ok=0;break;}if(fwrite(&old,sizeof old,1,dst)!=1){ok=0;break;}}if(ferror(src))ok=0;fclose(src);}
  if(ok&&fwrite(r,sizeof *r,1,dst)!=1)ok=0;if(fclose(dst))ok=0;if(!ok)return 0;
- remove("C:\\DOSSHELL\\LEARN.BAK");if(exists&&rename("C:\\DOSSHELL\\LEARN.DAT","C:\\DOSSHELL\\LEARN.BAK"))return 0;
- if(rename("C:\\DOSSHELL\\LEARN.TMP","C:\\DOSSHELL\\LEARN.DAT")){if(exists)rename("C:\\DOSSHELL\\LEARN.BAK","C:\\DOSSHELL\\LEARN.DAT");return 0;}dl_index();return 1;
+ remove("C:\\LOCSHELL\\LEARN.BAK");if(exists&&rename("C:\\LOCSHELL\\LEARN.DAT","C:\\LOCSHELL\\LEARN.BAK"))return 0;
+ if(rename("C:\\LOCSHELL\\LEARN.TMP","C:\\LOCSHELL\\LEARN.DAT")){if(exists)rename("C:\\LOCSHELL\\LEARN.BAK","C:\\LOCSHELL\\LEARN.DAT");return 0;}dl_index();return 1;
 }
-static int dl_verified(unsigned long id,unsigned long signature,DLRecord*out){FILE*f;DLRecord r;int found=0;f=fopen("C:\\DOSSHELL\\LEARN.DAT","rb");if(!f)return 0;while(fread(&r,sizeof r,1,f)==1){if(r.id!=id||r.signature!=signature)continue;if(r.disposition==DL_REJECTED||r.disposition==DL_RESET)found=0;else if(r.disposition==DL_CONFIRMED){*out=r;found=1;}}fclose(f);return found;}
+static int dl_verified(unsigned long id,unsigned long signature,DLRecord*out){FILE*f;DLRecord r;int found=0;f=fopen("C:\\LOCSHELL\\LEARN.DAT","rb");if(!f)return 0;while(fread(&r,sizeof r,1,f)==1){if(r.id!=id||r.signature!=signature)continue;if(r.disposition==DL_REJECTED||r.disposition==DL_RESET)found=0;else if(r.disposition==DL_CONFIRMED){*out=r;found=1;}}fclose(f);return found;}
 unsigned dl_confirmation(unsigned long id,unsigned long signature){DLRecord r;return dl_verified(id,signature,&r)?DL_CONFIRMED:DL_PARTIAL;}
-int dl_prepare(unsigned long id,const char*commands){FILE*f;int ok;union REGS q;q.x.ax=0xd74d;q.x.bx=0x4c4d;q.x.cx=0;int86(0x2f,&q,&q);if(q.x.ax==0x4d4c)return 0;f=fopen("C:\\DOSSHELL\\LEARN.NEW","w");if(!f)return 0;ok=fprintf(f,"%08lx %08lx\n",id,dl_signature(commands))>0;if(fclose(f))ok=0;if(!ok)return 0;if(access("C:\\DOSSHELL\\LEARN.REQ",0)==0)return 0;return rename("C:\\DOSSHELL\\LEARN.NEW","C:\\DOSSHELL\\LEARN.REQ")==0;}
+int dl_prepare(unsigned long id,const char*commands){FILE*f;int ok;union REGS q;q.x.ax=0xd74d;q.x.bx=0x4c4d;q.x.cx=0;int86(0x2f,&q,&q);if(q.x.ax==0x4d4c)return 0;f=fopen("C:\\LOCSHELL\\LEARN.NEW","w");if(!f)return 0;ok=fprintf(f,"%08lx %08lx\n",id,dl_signature(commands))>0;if(fclose(f))ok=0;if(!ok)return 0;if(access("C:\\LOCSHELL\\LEARN.REQ",0)==0)return 0;return rename("C:\\LOCSHELL\\LEARN.NEW","C:\\LOCSHELL\\LEARN.REQ")==0;}
 int dl_confirm(const DLRecord*record,unsigned disposition){DLRecord r=*record;r.disposition=disposition;return dl_append(&r);}
 unsigned long dl_conv_budget(const DLRecord*r){const DLStats*s=&r->stats;if(s->min_conv>=s->base_conv)return 0;return ((unsigned long)(s->base_conv-s->min_conv)+s->paras)*16UL+16UL;}
 DLFit dl_budget(const DLRecord*r,const DMMemory*m){const DLStats*s=&r->stats;unsigned ems,xms;unsigned long conv;

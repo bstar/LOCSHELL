@@ -1,10 +1,10 @@
 
 static int shellVisible=1, shellDrain=0, shellEnabled=1, shellOnline=0;
 static int shellProtected(const char*p){
- if(!stricmp(p,"C:\\DOSSHELL"))return 1;
- if(strnicmp(p,"C:\\DOSSHELL\\",12))return 0;
+ if(!stricmp(p,"C:\\LOCSHELL"))return 1;
+ if(strnicmp(p,"C:\\LOCSHELL\\",12))return 0;
  p+=12;
- return !strnicmp(p,"MEMORY.",7)||!strnicmp(p,"LIBRARY.",8)||!strnicmp(p,"DOSSHELL.",9)||!strnicmp(p,"LEARN.",6)||!strnicmp(p,"NETSTATE.",9)||!strnicmp(p,"RECENT.",7);
+ return !strnicmp(p,"MEMORY.",7)||!strnicmp(p,"LIBRARY.",8)||!strnicmp(p,"LOCSHELL.",9)||!strnicmp(p,"LEARN.",6)||!strnicmp(p,"NETSTATE.",9)||!strnicmp(p,"RECENT.",7);
 }
 static uint8_t shuttingDown=0;
 static clockTicks_t lastTimeoutSweep,lastKeyboardCheck,lastDnsCheck;
@@ -26,11 +26,11 @@ static int shellService(void) {
 
 #ifdef LOC_SHELL_TEST
     int previewTrace=daPreviewPending&&!FtpClient::activeClients;
-    if(previewTrace){FILE*f=fopen("C:\\DOSSHELL\\PHASE.TXT","w");if(f){fputs("before preview\n",f);fclose(f);}}
+    if(previewTrace){FILE*f=fopen("C:\\LOCSHELL\\PHASE.TXT","w");if(f){fputs("before preview\n",f);fclose(f);}}
 #endif
     daPoll(FtpClient::activeClients);
 #ifdef LOC_SHELL_TEST
-    if(previewTrace){FILE*f=fopen("C:\\DOSSHELL\\PHASE.TXT","a");if(f){fprintf(f,"after preview sleeping=%d\n",daSleeping);fclose(f);}}
+    if(previewTrace){FILE*f=fopen("C:\\LOCSHELL\\PHASE.TXT","a");if(f){fprintf(f,"after preview sleeping=%d\n",daSleeping);fclose(f);}}
 #endif
 
 

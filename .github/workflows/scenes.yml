@@ -29,4 +29,15 @@ jobs:
       - run: nix develop path:./nix#ci --command python tools/test_island.py
       - run: nix develop path:./nix#ci --command python tools/build.py --locshell
       - run: nix develop path:./nix#ci --command python tools/test_locshell.py
-      - run: python3 tools/test_saves.py
+      - name: Controller, migration, scene and save-vault checks
+        run: |
+          python3 tools/test_cli.py
+          python3 tools/test_operations.py
+          python3 tools/test_recipes.py
+          python3 tools/test_flows.py
+          python3 tools/test_import_installation.py
+          python3 tools/test_scenes.py
+          python3 tools/test_saves.py
+      - run: nix develop path:./nix#ci --command python tools/test_dos.py
+      - run: nix develop path:./nix#ci --command python tools/build_suite.py
+      - run: python3 tools/package.py --build build --output build/package

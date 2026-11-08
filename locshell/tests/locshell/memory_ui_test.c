@@ -1,7 +1,7 @@
-#define DOSSHELL_RENDER_TEST
-#define DOSSHELL_INPUT_TEST
+#define LOCSHELL_RENDER_TEST
+#define LOCSHELL_INPUT_TEST
 #define main shell_main
-#include "../../src/dosshell/dosshell.c"
+#include "../../src/locshell/locshell.c"
 #undef main
 static int keys[80],keycount,keypos;
 int ds_test_event(void){if(keypos>=keycount){puts("UI_INPUT_EXHAUSTED");exit(2);}return keys[keypos++];}

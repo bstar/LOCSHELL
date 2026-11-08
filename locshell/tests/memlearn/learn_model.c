@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #define CHECK(x) if(!(x)){printf("LEARN_FAIL %d\n",__LINE__);return 1;}
 int main(void){unsigned long sig,changed;DLRecord r,out;DMMemory m;FILE*f;
- const char*commands="C:\nCD \\DOSSHELL\nFIXTURE.EXE\n";
- remove("C:\\DOSSHELL\\LEARN.DAT");remove("C:\\DOSSHELL\\GAME.CFG");
+ const char*commands="C:\nCD \\LOCSHELL\nFIXTURE.EXE\n";
+ remove("C:\\LOCSHELL\\LEARN.DAT");remove("C:\\LOCSHELL\\GAME.CFG");
  sig=dl_signature(commands);CHECK(sig!=0);CHECK(sig==dl_signature(commands));
  f=fopen("GAME.CFG","w");fputs("music=adlib\n",f);fclose(f);changed=dl_signature(commands);CHECK(changed!=sig);remove("GAME.CFG");CHECK(dl_signature(commands)==sig);
  CHECK(dl_signature("CALL UNKNOWN.BAT\n")==0);

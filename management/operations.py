@@ -23,7 +23,9 @@ def history(api,kind,**fields):
  return row
 
 def maybe(api,f,path):
- try:return api.read(f,path)
+ try:
+  if hasattr(f,'size'):f.size(path)
+  return api.read(f,path)
  except api.ftplib.error_perm as e:
   if str(e).startswith('550'):return None
   raise
@@ -55,9 +57,17 @@ def deploy(a,api):
   if a.dry_run:record['state']='dry-run';return record
   journal=base/'release.json';save(journal,record);history(api,'release-prepared',release=release,name=record['name'])
   try:
+   artifact_directory=manifest.get('artifacts') or '/LOCSHELL/BACKUP'
+   if hasattr(f,'cwd'):
+    try:f.cwd(artifact_directory)
+    except api.ftplib.error_perm as error:
+     if not str(error).startswith('550'):raise
+     f.mkd(artifact_directory)
    for i,row in enumerate(record['files']):
     if row['state']=='unchanged':continue
-    parent=row['target'].rsplit('/',1)[0];stem=release[:5]+f'{i:03X}'
+    parent=manifest.get('artifacts') or '/LOCSHELL/BACKUP'
+    if not parent.startswith('/') or any(not re.fullmatch(r'[A-Za-z0-9_~-]{1,8}',part) for part in parent.strip('/').split('/')):raise ValueError('Invalid release artifact directory')
+    stem=release[:5]+f'{i:03X}'
     row.update(stage=parent+'/'+stem+'.NEW',backup=parent+'/'+stem+'.BAK',aside=parent+'/'+stem+'.OUT')
     if any(maybe(api,f,row[k]) is not None for k in ['stage','backup','aside']):raise RuntimeError('Release staging name collision')
     api.put(f,row['stage'],Path(row['local_source']).read_bytes());row['state']='staged';save(journal,record)

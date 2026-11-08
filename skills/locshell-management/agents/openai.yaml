@@ -1,0 +1,4 @@
+interface:
+  display_name: "LOC SHELL"
+  short_description: "Install and manage a self-contained retro DOS shell"
+  default_prompt: "Use $locshell-management to install the Island screensaver on my retro PC."

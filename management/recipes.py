@@ -9,7 +9,8 @@ RECIPES={
  'logs':('FTP','Recent FTP/boot logs, tail-limited and saved locally'),
  'deployment-check':('FTP','Compare installed files with an explicit local SHA256 manifest'),
 }
-BASE=Path(os.environ.get('DOSCTL_STATE_DIR',Path.home()/'.local/state/dosctl'))
+from layout import STATE
+BASE=Path(os.environ.get('DOSCTL_STATE_DIR',STATE))
 CUSTOM={}
 def load_custom():
  directory=Path(os.environ.get('DOSCTL_CUSTOM_RECIPES',Path(__file__).resolve().parents[1]/'custom_recipes'))
@@ -71,9 +72,10 @@ def execute(a,api):
     if b is not None:result[p]={'sha256':hashlib.sha256(b).hexdigest(),'bytes':len(b),'text':b.decode('cp437')}
    return result
   if name=='doctor':
-   report['capabilities']=f.sendcmd('SITE HELP');report['pending_job']=None
-   b=get('/NET/JOBS/LOCK/ID.TXT')
-   if b is not None:report['pending_job']={'id':b.decode().strip(),'state':(get('/NET/JOBS/LOCK/STATE.TXT') or b'unknown').decode().strip()}
+   report['capabilities']=f.sendcmd('SITE HELP');report['agent_capabilities']=f.sendcmd('SITE AGENT');report['pending_job']=None
+   if 'layout=2' not in report['agent_capabilities'].split():report['findings'].append({'kind':'layout-upgrade-required'})
+   b=get('/LOCSHELL/NET/JOBS/LOCK/ID.TXT')
+   if b is not None:report['pending_job']={'id':b.decode().strip(),'state':(get('/LOCSHELL/NET/JOBS/LOCK/STATE.TXT') or b'unknown').decode().strip()}
    report['disk_free']=f.sendcmd('SITE DISKFREE C')
    if 'QUIT' not in report['capabilities'].split():report['findings'].append({'kind':'missing-SITE-QUIT'})
   elif name=='deployment-check':
@@ -86,7 +88,7 @@ def execute(a,api):
     if actual!=digest:report['findings'].append({'kind':'hash-mismatch','path':path})
   elif name=='logs':
    report['logs']={}
-   for path in (a.path or ['/NET/FTP.LOG','/NET/JOBS/LAST.TXT']):
+   for path in (a.path or ['/LOCSHELL/NET/FTP.LOG','/LOCSHELL/NET/JOBS/LAST.TXT']):
     b=get(path)
     if b is not None:report['logs'][path]='\n'.join(b.decode('cp437').splitlines()[-100:])
  if RECIPES[name][0]=='job':
@@ -108,7 +110,7 @@ def execute(a,api):
     if m:report['memory'][key]=int(m[1].replace(',',''))
   elif name=='storage-check':
    report['coverage']='Fresh capacity/free-space check; file analysis requires --deep or --hash'
-   output=job('C:\\NET\\AGENT\\DOSINFO.EXE',['--disks'],'disks')
+   output=job('C:\\LOCSHELL\\NET\\AGENT\\DOSINFO.EXE',['--disks'],'disks')
    report['drives']=[]
    if output:
     for d,total,free in re.findall(r'^DISK\t([C-F])\t(\d+)\t(\d+)',output,re.M):
@@ -121,7 +123,7 @@ def execute(a,api):
    if not a.hash:
     import flows
     rows,errors,end=flows.scan_records(a,api,paths,report,out);output='flow'
-   else:output=job('C:\\NET\\AGENT\\DOSINFO.EXE',['--hash']+paths,'scan');rows,errors,end=parse_scan(output or '')
+   else:output=job('C:\\LOCSHELL\\NET\\AGENT\\DOSINFO.EXE',['--hash']+paths,'scan');rows,errors,end=parse_scan(output or '')
    if output:
     report['scan']={'paths':paths,'summary':end,'errors':errors,'hash':'CRC32 candidate fingerprint only' if a.hash else None};(out/'inventory.json').write_text(json.dumps(rows,indent=2))
     if end is None:report['findings'].append({'kind':'incomplete-scan'})
@@ -132,6 +134,6 @@ def execute(a,api):
      for r in fs:
       if r['size']:groups.setdefault((r['size'],r.get('crc32')) if a.hash else (r['size'],r['path'].rsplit('\\',1)[-1]),[]).append(r['path'])
      report['duplicate_candidates']=[{'key':list(k),'paths':v} for k,v in groups.items() if len(v)>1];report['limits']=['Candidates only; compare full contents before deletion. CRC32 collisions are possible.']
-     report['job_backup_bytes']=sum(r['size'] for r in fs if r['path'].startswith('C:\\NET\\JOBS\\') or r['path'].endswith(('.BAK','.NEW')))
+     report['job_backup_bytes']=sum(r['size'] for r in fs if r['path'].startswith('C:\\LOCSHELL\\NET\\JOBS\\') or r['path'].endswith(('.BAK','.NEW')))
  if report['findings'] and report['state']=='completed':report['state']='needs-attention'
  (out/'report.json').write_text(json.dumps(report,indent=2)+'\n');return report

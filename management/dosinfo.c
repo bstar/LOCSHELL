@@ -11,7 +11,7 @@ static unsigned long crc(const char *path){FILE *f;unsigned char b[2048];unsigne
  if(ferror(f)){errors++;printf("ERROR\t%s\tread\n",path);}fclose(f);return c^0xffffffffUL;}
 static void scan(const char *path,unsigned depth){struct find_t f;char pattern[84],child[84];unsigned len=(unsigned)strlen(path);unsigned rc;
  if(depth>32||len>75){printf("ERROR\t%s\tpath-limit\n",path);errors++;return;}
- if(!stricmp(path,"C:\\NET\\JOBS\\LOCK")){printf("SKIP\t%s\tactive-job\n",path);return;}
+ if(!stricmp(path,"C:\\LOCSHELL\\NET\\JOBS\\LOCK")){printf("SKIP\t%s\tactive-job\n",path);return;}
  strcpy(pattern,path);if(len&&path[len-1]!='\\')strcat(pattern,"\\");strcat(pattern,"*.*");
  printf("D\t%s\n",path);rc=_dos_findfirst(pattern,0x37,&f);
  if(rc){if(rc!=2&&rc!=18){errors++;printf("ERROR\t%s\tfind-%u\n",path,rc);}return;}

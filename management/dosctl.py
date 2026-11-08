@@ -3,31 +3,45 @@
 import argparse,ftplib,io,json,os,sys,time,secrets,re,contextlib,datetime,hashlib
 
 from pathlib import Path
-ROOT='/NET/JOBS'
-DEFAULT=Path.home()/'.config/dosctl/access.json'
+DEFAULT_JOB_ROOT='/LOCSHELL/NET/JOBS'
+ROOT=DEFAULT_JOB_ROOT
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+from layout import ACCESS
+DEFAULT=ACCESS
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 import recipes
-import operations,flows
+import operations,flows,scenes,installation_import
 from saves import cli as saves_cli
 LAST_RESULT=None
 JSON_MODE=False
 
 def connect(args):
  c=json.loads((args.credentials or DEFAULT).read_text())
- for attempt in range(12):
+ deadline=time.monotonic()+25
+ while True:
   f=ftplib.FTP()
-  try:f.connect(c['host'],c.get('port',21),timeout=5);f.login(c['username'],c['password']);return f
-  except ftplib.error_temp as e:
+  try:
+   f.connect(c['host'],c.get('port',21),timeout=5);f.login(c['username'],c['password'])
+   f.timeout=30;f.sock.settimeout(30)
+   return f
+  except (ftplib.error_temp,EOFError,ConnectionResetError,ConnectionRefusedError,TimeoutError) as e:
    f.close()
-   if not str(e).startswith('421') or attempt==11:raise
-   time.sleep(.25)
+   if (isinstance(e,ftplib.error_temp) and not str(e).startswith('421')) or time.monotonic()>=deadline:raise
+   time.sleep(.5)
   except BaseException:f.close();raise
 
 def read(f,path):
  b=io.BytesIO();f.retrbinary('RETR '+path,b.write);return b.getvalue()
 
 def put(f,path,data):
- f.storbinary('STOR '+path,io.BytesIO(data))
+ # DOS may still be draining the host's queued upload when ftplib waits for
+ # the final reply. Bound that wait by payload size; never replay the STOR.
+ previous=f.sock.gettimeout() if getattr(f,'sock',None) is not None else None
+ try:
+  if getattr(f,'sock',None) is not None:f.sock.settimeout(max(previous or 30,min(900,30+len(data)/2048)))
+  f.storbinary('STOR '+path,io.BytesIO(data))
+ finally:
+  if getattr(f,'sock',None) is not None:f.sock.settimeout(previous)
  if read(f,path)!=data:raise RuntimeError('Upload verification failed: '+path)
 
 def text(s):
@@ -35,7 +49,7 @@ def text(s):
  return s
 
 def state_dir(a):
- key=hashlib.sha256(str(a.credentials or DEFAULT).encode()).hexdigest()[:12]
+ key=hashlib.sha256((str(a.credentials or DEFAULT)+'|'+ROOT).encode()).hexdigest()[:12]
  base=recipes.BASE;base.mkdir(parents=True,exist_ok=True,mode=0o700);os.chmod(base,0o700)
  p=base/'jobs'/key;p.mkdir(parents=True,exist_ok=True);return p
 
@@ -51,10 +65,12 @@ def track(a,job,state):
 
 
 def command_main():
- global LAST_RESULT
- p=argparse.ArgumentParser(description=__doc__);p.add_argument('--credentials',type=Path);p.add_argument('--timeout',type=float,default=None)
+ global LAST_RESULT,ROOT
+ p=argparse.ArgumentParser(description=__doc__);p.add_argument('--credentials',type=Path);p.add_argument('--timeout',type=float,default=None);p.add_argument('--job-root',default=DEFAULT_JOB_ROOT,help='Explicit previous job root for migration/recovery only')
  sub=p.add_subparsers(dest='cmd',required=True)
  saves_cli.parser(sub)
+ scenes.parser(sub)
+ installation_import.parser(sub)
  for name in ('put','get'):
   s=sub.add_parser(name);s.add_argument('source');s.add_argument('destination')
  for name in ('run','exec'):
@@ -79,8 +95,11 @@ def command_main():
  r=sub.add_parser('reports');r.add_argument('--limit',type=int,default=20)
  s=sub.add_parser('recipe');s.add_argument('name',choices=recipes.RECIPES);s.add_argument('--path',action='append');s.add_argument('--all-drives',action='store_true');s.add_argument('--deep',action='store_true');s.add_argument('--hash',action='store_true');s.add_argument('--manifest',type=Path);s.add_argument('--source',type=Path);s.add_argument('--dry-run',action='store_true')
  a=p.parse_args()
+ ROOT=installation_import.path(a.job_root)
  api=sys.modules[__name__]
- if a.cmd=='saves':LAST_RESULT=saves_cli.handle(a)
+ if a.cmd in ('import-installation','archive-import'):LAST_RESULT=installation_import.handle(a,api)
+ elif a.cmd=='scene':LAST_RESULT=scenes.handle(a,api)
+ elif a.cmd=='saves':LAST_RESULT=saves_cli.handle(a)
  elif a.cmd=='resident':
   import resident_client
   LAST_RESULT=resident_client.handle(a)
@@ -100,7 +119,7 @@ def command_main():
    except ValueError:continue
   LAST_RESULT={'events':rows[-max(0,min(a.limit,1000)):] if a.limit>0 else []}
  elif a.cmd=='machine':
-  artifact=recipes.artifact_dir();result=flows.invoke(a,['exec','--label','Live machine identity','C:\\NET\\AGENT\\DOSINFO.EXE','--','--identity'])
+  artifact=recipes.artifact_dir();result=flows.invoke(a,['exec','--label','Live machine identity','C:\\LOCSHELL\\NET\\AGENT\\DOSINFO.EXE','--','--identity'])
   output=result.get('output','');identity={}
   for line in output.splitlines():
    parts=line.split('\t')
@@ -112,10 +131,10 @@ def command_main():
    except ftplib.error_perm:active='Not supported by active FTP build'
    installed={}
    for name in ['FTPSRV.EXE','DOSAGENT.EXE','DOSINFO.EXE']:
-    installed[name]=hashlib.sha256(read(f,'/NET/AGENT/'+name)).hexdigest()
+    installed[name]=hashlib.sha256(read(f,'/LOCSHELL/NET/AGENT/'+name)).hexdigest()
   LAST_RESULT={'state':'completed','collected_at':recipes.timestamp(),'job':result['id'],'identity':identity,'active_ftp':active,'installed_sha256':installed,'context':'Native job; FTP stopped during memory collection. Installed hashes do not establish resident-parent version.','artifacts':str(artifact)}
   operations.save(artifact/'machine.json',LAST_RESULT);operations.history(api,'machine-identity',job=result['id'],identity=identity)
- if a.cmd in ('flow','deploy','restore','annotate','history','machine','resident','saves'):
+ if a.cmd in ('flow','deploy','restore','annotate','history','machine','resident','saves','scene','import-installation','archive-import'):
   if not JSON_MODE:print(json.dumps(LAST_RESULT,indent=2))
   return 2 if LAST_RESULT.get('state') in ('waiting','uncertain') else (1 if LAST_RESULT.get('state') in ('failed','error') else 0)
  if a.cmd=='inventory':a.cmd='recipe';a.name='inventory';a.deep=False;a.manifest=None
@@ -143,7 +162,12 @@ def command_main():
    if before is None:
     put(f,a.destination,data);operations.history(api,'file-created',path=a.destination,sha256=hashlib.sha256(data).hexdigest(),runtime_verified=False);return
    if before==data:return
-   parent=a.destination.rsplit('/',1)[0];stem='U'+secrets.token_hex(4)[:7].upper()
+   parent='/LOCSHELL/BACKUP'
+   try:f.cwd(parent)
+   except ftplib.error_perm as error:
+    if not str(error).startswith('550'):raise
+    f.mkd(parent)
+   stem='U'+secrets.token_hex(4)[:7].upper()
    stage=parent+'/'+stem+'.NEW';backup=parent+'/'+stem+'.BAK'
    if f.nlst(stage) or f.nlst(backup):raise RuntimeError('Staging name collision; retry')
    put(f,stage,data);f.rename(a.destination,backup)
@@ -180,7 +204,8 @@ def command_main():
      f.rename(path,ROOT+'/'+job)
    if complete and a.cmd=='result' and LAST_RESULT['state'] in ('completed','failed-to-start','interrupted'):track(a,job,LAST_RESULT['state'])
    return
-  if 'QUIT' not in f.sendcmd('SITE HELP').split():raise RuntimeError('Start C:\\NET\\AGENT\\START.BAT locally first; current server lacks SITE QUIT')
+  if 'QUIT' not in f.sendcmd('SITE HELP').split():raise RuntimeError('Start C:\\LOCSHELL\\NET\\AGENT\\START.BAT locally first; current server lacks SITE QUIT')
+  if ROOT==DEFAULT_JOB_ROOT and 'layout=2' not in f.sendcmd('SITE AGENT').split():raise RuntimeError('Start the contained LOC SHELL first; legacy recovery needs an explicit --job-root')
   kind='BAT' if a.cmd in ('run','inventory') else 'EXE'
   payload=None
   if a.cmd=='run':
@@ -239,11 +264,11 @@ def main():
   with contextlib.redirect_stdout(output),contextlib.redirect_stderr(error):rc=command_main() or 0
   result=LAST_RESULT or {'state':'completed' if not rc else 'needs-attention','output':output.getvalue(),'exit_code':rc}
   if error.getvalue():result['diagnostic']=error.getvalue()
- except (OSError,ValueError,RuntimeError,ftplib.Error) as e:
-  rc=1;state='busy' if str(e).startswith('421') else ('unreachable' if isinstance(e,(ConnectionError,TimeoutError)) or getattr(e,'errno',None) in (101,111,113) else 'error');result={'state':state,'error':str(e)}
+ except (OSError,EOFError,ValueError,RuntimeError,ftplib.Error) as e:
+  rc=1;state='busy' if str(e).startswith('421') else ('unreachable' if isinstance(e,(ConnectionError,TimeoutError,EOFError)) or getattr(e,'errno',None) in (101,111,113) else 'error');result={'state':state,'error':str(e)}
   if isinstance(e,operations.ReleaseFailure):result.update(release_id=e.release_id,journal=e.journal,recovery_state=e.recovery_state)
  print(json.dumps(result,indent=2));return rc
 
 if __name__=='__main__':
  try:sys.exit(main() or 0)
- except (OSError,ValueError,RuntimeError,ftplib.Error) as e:print(str(e),file=sys.stderr);sys.exit(1)
+ except (OSError,EOFError,ValueError,RuntimeError,ftplib.Error) as e:print(str(e),file=sys.stderr);sys.exit(1)

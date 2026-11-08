@@ -108,10 +108,10 @@ LOC SHELL owns the FTP lifecycle and display restoration. Run
 checkout, set `DOS_SCENES_SOURCE` to its `src` directory.
 
 The classic server also supports 387 Sculpture and progressive Mandelbrot savers when a 386/387 is available.
-Alt-V cycles and saves Starfield / 387 Sculpture / 387 Mandelbrot / Island / Off in `C:\NET\AGENT\SAVER.CFG`.
+Alt-V cycles and saves Starfield / 387 Sculpture / 387 Mandelbrot / Island / Off in `C:\LOCSHELL\NET\AGENT\SAVER.CFG`.
 Alt-P previews the selection. `DOSAGENT_SAVER=stars|island|off` overrides the
 saved selection; `DOSAGENT_IDLE=0` disables activation. Place a scene pack in
-`C:\ISLAND` (or override `DA_ISLAND_DIRECTORY` at compile time). The Island slot
+`C:\LOCSHELL\ISLAND` (or override `DA_ISLAND_DIRECTORY` at compile time). The Island slot
 accepts any compatible pack, including the original Night Coast demo shipped
 with dos-scenes. Missing assets fall back to the existing starfield.
 
@@ -140,4 +140,18 @@ The host remains GPL-3.0-or-later. The runtime's MIT license is retained in its
 submodule. The bundled island pack retains its original [artwork, concept and music
 credits](https://github.com/bstar/dos-scenes/blob/main/scenes/island/CREDITS.md).
 Build it with `python third_party/dos-scenes/tools/pack_island.py` and copy the
-resulting scene files into `C:\ISLAND`, preserving existing volume settings.
+resulting scene files into `C:\LOCSHELL\ISLAND`, preserving existing volume settings.
+
+## Self-contained package and Island installation
+
+LOC SHELL 2.3 keeps its application files, network configuration/tools, jobs,
+screensavers and user state under **`C:\LOCSHELL`**. Build the shell and utility
+suite, then run `python3 tools/package.py --build build --output build/package`
+for the complete ZIP, including the pinned Island pack.
+
+For an existing contained installation, `dosctl --json scene install island`
+fetches/prepares that pack and verifies the upload while preserving saved volume.
+Optional `--select --preview` saves the choice and queues a preview.
+Read the [layout and migration guide](docs/MIGRATION.md) before updating an older
+installation. Agents can use the included
+[LOC SHELL management skill](skills/locshell-management/SKILL.md).

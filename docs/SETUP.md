@@ -12,13 +12,15 @@ LOC SHELL cannot receive its own initial setup before those are in place.
 ## 1. Get the right files
 
 Get a built DOS package from the person supplying your installation, or build
-the source as described below. **GitHub's Code → Download ZIP downloads source
+and package the source as described below. The ZIP contains one `LOCSHELL` folder,
+including network tools, helpers and the Island pack. Extract that folder to C:. **GitHub's Code → Download ZIP downloads source
 code; it is not a ready-to-run DOS installer.** The repository has no automatic
 first-time installer that detects every network card, game or boot arrangement.
 
 Use a production build. A build with emulator test hooks enabled is for tests.
 Games, the owner's game list and private credentials are not part of this
-source distribution. Island's scene files are a separate pack.
+source distribution. The package command fetches/prepares the pinned Island pack
+automatically; use `--without-island` to omit it.
 
 ## 2. Prepare the DOS PC and network
 
@@ -26,7 +28,7 @@ The setup person needs to establish:
 
 1. A DOS installation and the machine's working boot/memory configuration.
 2. A working network card, its DOS packet driver, and a connected local network.
-3. `C:\NET\MTCP.CFG` with settings appropriate for that driver/network, including
+3. `C:\LOCSHELL\NET\MTCP.CFG` with settings appropriate for that driver/network, including
    the FTP account-file setting `FTPSRV_PASSWORD_FILE`.
 4. An FTP account with a private password and the intended root directory.
 5. A way to put the initial files on the disk: local media/card transfer or an
@@ -53,14 +55,14 @@ their catalogue, observations, credentials and settings.
 
 | DOS location | What belongs there |
 | --- | --- |
-| `C:\DOSSHELL` | `LOCSHELL.EXE`, `LOCHAND.EXE`, `MEMWATCH.COM`, `MEMLEARN.EXE`, `LOCSHELL.BAT`, `LCSMAIN.BAT`, and `LOCSHELL.TXT`. |
-| `C:\NET\AGENT` | The matching `DOSAGENT.EXE` supervisor and `DOSINFO.EXE` diagnostic helper. |
-| `C:\NET\JOBS` | Initially an empty directory for managed jobs. Do not clear it on an existing installation. |
-| `C:\NET\BIN` | The standalone mTCP utilities built by `tools/build_suite.py`. |
-| `C:\NET` | Your own `MTCP.CFG` and the account file it names. |
-| `C:\ISLAND` | Optional compatible Island scene/music files. |
+| `C:\LOCSHELL` | `LOCSHELL.EXE`, `LOCHAND.EXE`, `MEMWATCH.COM`, `MEMLEARN.EXE`, `LOCSHELL.BAT`, `LCSMAIN.BAT`, and `LOCSHELL.TXT`. |
+| `C:\LOCSHELL\NET\AGENT` | The matching `DOSAGENT.EXE` supervisor and `DOSINFO.EXE` diagnostic helper. |
+| `C:\LOCSHELL\NET\JOBS` | Initially an empty directory for managed jobs. Do not clear it on an existing installation. |
+| `C:\LOCSHELL\NET\BIN` | The standalone mTCP utilities built by `tools/build_suite.py`. |
+| `C:\LOCSHELL\NET` | Your own `MTCP.CFG` and the account file it names. |
+| `C:\LOCSHELL\ISLAND` | Optional compatible Island scene/music files. |
 
-`DSHELL.EXE` and `CLASSIC.BAT` can also go in `C:\DOSSHELL` as a standalone
+`LOCSOLO.EXE` and `CLASSIC.BAT` can also go in `C:\LOCSHELL` as a standalone
 catalogue fallback. They are not the integrated FTP application. The NetDrive
 driver may be supplied with the utilities; do not automatically add it to
 `CONFIG.SYS` just to run LOC SHELL.
@@ -69,14 +71,14 @@ For a **new installation only**, create an empty game list if none exists.
 At the DOS prompt:
 
 ```bat
-IF NOT EXIST C:\DOSSHELL\LIBRARY.TXT TYPE NUL > C:\DOSSHELL\LIBRARY.TXT
+IF NOT EXIST C:\LOCSHELL\LIBRARY.TXT TYPE NUL > C:\LOCSHELL\LIBRARY.TXT
 ```
 
 An empty list is allowed. Add games through **Edit → Add…** afterwards. Missing
 memory/learning records mean requirements are unknown; do not fill them with
 invented figures. Preserve these files if already present:
 
-`LIBRARY.TXT`, `MEMORY.TSV`, `LEARN.DAT`, `RECENT.TXT`, `DOSSHELL.CFG`.
+`LIBRARY.TXT`, `MEMORY.TSV`, `LEARN.DAT`, `RECENT.TXT`, `LOCSHELL.CFG`.
 
 Keep supplied DOS batch files as plain text with DOS CRLF line endings. Use
 binary file transfer for the prepared package.
@@ -85,7 +87,7 @@ binary file transfer for the prepared package.
 
 1. Load the packet driver and establish the machine's mTCP network settings
    using its normal procedure. If it uses DHCP, obtain its address first.
-2. At the DOS prompt, type `C:\DOSSHELL\LOCSHELL.BAT` and press **Enter**.
+2. At the DOS prompt, type `C:\LOCSHELL\LOCSHELL.BAT` and press **Enter**.
 3. Press **F2**. Check that the menu works and FTP says **Running**.
 4. Connect from the modern computer and transfer a disposable test file into a
    test folder. Download it again and compare its bytes.
@@ -95,7 +97,7 @@ binary file transfer for the prepared package.
 6. Add and try one game locally, including returning from the game to the shell.
 
 Only after that works should the machine's existing startup procedure call
-`C:\DOSSHELL\LOCSHELL.BAT`, **after** network-driver/address setup. Preserve
+`C:\LOCSHELL\LOCSHELL.BAT`, **after** network-driver/address setup. Preserve
 other boot choices and a DOS recovery route. There is no universal AUTOEXEC or
 CONFIG replacement; overwriting those files can break an otherwise working PC.
 
@@ -115,6 +117,7 @@ nix --extra-experimental-features 'nix-command flakes' develop path:./nix --comm
 nix --extra-experimental-features 'nix-command flakes' develop path:./nix --command python tools/build_suite.py
 nix --extra-experimental-features 'nix-command flakes' develop path:./nix --command python tools/test_locshell.py
 python3 tools/test_saves.py
+python3 tools/package.py --build build --output build/package
 ```
 
 The pinned development shell targets x86-64 Linux. Successful builds produce
@@ -128,7 +131,7 @@ For Island, choose a new output directory and run:
 python3 third_party/dos-scenes/tools/pack_island.py --output /your/new/scene-pack-directory
 ```
 
-Copy that pack to `C:\ISLAND`. Preserve
+Copy that pack to `C:\LOCSHELL\ISLAND`. Preserve
 an existing `VOLUME.CFG`. The scene's separate artwork/music credits and license
 remain in the dos-scenes repository.
 

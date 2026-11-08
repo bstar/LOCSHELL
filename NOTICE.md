@@ -62,3 +62,9 @@ The compact cloud/XMS music patch retains the MIT dos-scenes runtime notices.
 The corrected Watcom heap-walk source and its Sybase Open Watcom Public License
 are retained under `third_party/watcom-heap/`. See both dependencies for their
 authors and terms.
+
+LOC SHELL 2.3 (2026-11-08) consolidates owned DOS components and state under
+C:\LOCSHELL, renames the authored frontend source/configuration, and adds pinned
+Island installation, contained packages and checked legacy-directory imports.
+The authenticated saver-selection extension is a LOC SHELL addition; it is not
+an upstream mTCP feature. Original artwork/music files retain their credits.

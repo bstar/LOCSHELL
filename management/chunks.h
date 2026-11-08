@@ -12,7 +12,7 @@ static int chunk_run(unsigned limit){FILE *q,*f;char path[84],pattern[84];unsign
  while(count<limit&&!chunk.done){
   if(!chunk.active){fseek(q,chunk.read_offset,SEEK_SET);if(!fgets(path,sizeof(path),q)){if(ferror(q)){fclose(q);return 1;}chunk.done=1;break;}
    chunk.read_offset=ftell(q);path[strcspn(path,"\r\n")]=0;strcpy(chunk.directory,path);len=strlen(path);count++;
-   if(!stricmp(path,"C:\\NET\\JOBS\\LOCK")){printf("SKIP\t%s\tactive-job\n",path);continue;}
+   if(!stricmp(path,"C:\\LOCSHELL\\NET\\JOBS\\LOCK")){printf("SKIP\t%s\tactive-job\n",path);continue;}
    printf("D\t%s\n",path);strcpy(pattern,path);if(pattern[len-1]!='\\')strcat(pattern,"\\");strcat(pattern,"*.*");rc=_dos_findfirst(pattern,0x37,&chunk.find);
    if(rc){if(rc!=2&&rc!=18){printf("ERROR\t%s\tfind-%u\n",path,rc);errors++;}continue;}chunk.active=1;continue;
   }

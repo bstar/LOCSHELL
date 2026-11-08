@@ -15,7 +15,7 @@ static const char *loc_shell_title(void) {
     unsigned n;
     FILE *f;
     if(*title)return title;
-    strcpy(title,"LOC SHELL 2.2");
+    strcpy(title,"LOC SHELL 2.3");
     profile=getenv("LOCSHELL_PROFILE");
     if(!profile) {
         profile=getenv("MACHINE");

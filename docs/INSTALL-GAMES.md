@@ -61,14 +61,14 @@ unless the person who configured your network supplied other settings.
 
 ## 2. Copy the complete game folder
 
-This example installs to `C:\GAMES\MYGAME`. Use a **new folder**, not an existing
+This example installs to `C:\LOCSHELL\GAMES\MYGAME`. Use a **new folder**, not an existing
 game installation containing saves.
 
 The following assumes your FTP account's `/` is `C:\`, as in the standard
 managed setup. If your connection card gives a different mapping, use that
-mapping. `/GAMES` would then refer to somewhere else.
+mapping. `/LOCSHELL/GAMES` would then refer to somewhere else.
 
-1. In FileZilla's **right-hand** list, open `/`.
+1. In FileZilla's **right-hand** list, open `/LOCSHELL`.
 2. Find `GAMES`. If it does not exist, right-click and create a directory named
    `GAMES`. Open it.
 3. In the **left-hand** list, open the folder containing your `MYGAME` folder.
@@ -101,7 +101,7 @@ but wait for copying to finish before running the game.
 4. Enter a friendly **Title**, such as `My Game`.
 5. Beside **Run App Commands**, choose **Browse…**.
 6. In **File Name**, enter the full DOS path, for example
-   `C:\GAMES\MYGAME\GAME.EXE`, and choose **OK**. You can also browse folders.
+   `C:\LOCSHELL\GAMES\MYGAME\GAME.EXE`, and choose **OK**. You can also browse folders.
 7. LOC SHELL fills in the drive, folder and launch command for you.
 8. If the game has a separate DOS setup program, use the second **Browse…**
    beside **Configure Commands** to select that program. Otherwise leave it empty.
@@ -114,7 +114,7 @@ For reference, the example's generated Run App Commands look like this:
 
 ```bat
 C:
-CD \GAMES\MYGAME
+CD \LOCSHELL\GAMES\MYGAME
 GAME.EXE
 ```
 
@@ -151,7 +151,8 @@ one. Do not try `/D:` or escape the FTP directory to reach another drive.
 The easy options are to ask an [agent/helper](AGENT-GUIDE.md#install-a-game),
 or stage the files on C: and copy them locally:
 
-1. Use the same upload steps, but put the folder in `/UPLOAD/MYGAME`.
+1. Create `UPLOAD` under `/LOCSHELL` if needed. Use the same upload steps,
+   but put the folder in `/LOCSHELL/UPLOAD/MYGAME`.
 2. Disconnect FileZilla.
 3. On the old PC, choose **File → Exit** to reach DOS. Keep enough free space
    for both the staged and final copies.
@@ -162,9 +163,9 @@ or stage the files on C: and copy them locally:
    ```bat
    MD D:\GAMES
    MD D:\GAMES\MYGAME
-   XCOPY C:\UPLOAD\MYGAME\*.* D:\GAMES\MYGAME\ /S /E /V
+   XCOPY C:\LOCSHELL\UPLOAD\MYGAME\*.* D:\GAMES\MYGAME\ /S /E /V
    DIR D:\GAMES\MYGAME
-   C:\DOSSHELL\LOCSHELL.BAT
+   C:\LOCSHELL\LOCSHELL.BAT
    ```
 
    If `XCOPY` reports an error, stop before the remaining lines and resolve it.

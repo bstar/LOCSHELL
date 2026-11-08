@@ -29,6 +29,6 @@ int main(int argc,char**argv){union REGS r;struct SREGS sr;unsigned seg,largest,
  mov flags,ax
  }
  f=fopen("FIXTURE.TXT","w");fprintf(f,"FIXTURE flags=%u XMS=%u largest_free=%lu retained_shell=%u retained_agent=%u shell_named_bytes=%lu\n",flags,ok,(unsigned long)largest*16,retained_shell,retained_agent,shell_named_bytes);fclose(f);
- if(!access("C:\\NET\\WRITECFG.FLG",0)){f=fopen("CONFIG.U6","w");if(f){fputs("music=adlib\n",f);fclose(f);}}
- if(argc>1&&!strcmp(argv[1],"/JOB")){f=fopen("C:\\NET\\ONCE.TXT","a");if(f){fputs("ONCE\n",f);fclose(f);}}puts("NATIVE-OUTPUT-PASS");return (flags&512)?0:3;
+ if(!access("C:\\LOCSHELL\\NET\\WRITECFG.FLG",0)){f=fopen("CONFIG.U6","w");if(f){fputs("music=adlib\n",f);fclose(f);}}
+ if(argc>1&&!strcmp(argv[1],"/JOB")){f=fopen("C:\\LOCSHELL\\NET\\ONCE.TXT","a");if(f){fputs("ONCE\n",f);fclose(f);}}puts("NATIVE-OUTPUT-PASS");return (flags&512)?0:3;
 }

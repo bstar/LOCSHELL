@@ -11,7 +11,7 @@ numbered list at a time; you do not need to read the whole guide first.
 ## Start here: play a game
 
 1. Start your retro PC using the boot choice that normally starts LOC SHELL.
-2. If you are at a DOS prompt instead, type `C:\DOSSHELL\LOCSHELL.BAT` and press
+2. If you are at a DOS prompt instead, type `C:\LOCSHELL\LOCSHELL.BAT` and press
    **Enter**. If that file is missing, use the [first-time setup guide](SETUP.md).
 3. Press **F2** to open Home. Click a recent game, or press **G** for Games.
 4. In Games, use the arrow keys to select a game. Press **Enter** to run it.
@@ -174,8 +174,8 @@ A green check is a memory guide, not a promise about every level, save or device
 3. Press **P** to preview it. Disconnect FTP clients so the preview can start.
 4. Press **I** to set the idle delay. Zero disables automatic saving.
 
-Island is the default when no choice was saved. It needs its separate scene
-files. Sculpture and Mandelbrot need a compatible math coprocessor. If the
+Island is the default when no choice was saved. The full LOC SHELL package
+includes its scene files. Sculpture and Mandelbrot need a compatible math coprocessor. If the
 required hardware, files or memory are unavailable, a fallback may be used.
 
 ## If something goes wrong
@@ -194,3 +194,15 @@ required hardware, files or memory are unavailable, a fallback may be used.
 
 If you need help, note the game name, the exact message and what you clicked.
 Those three things are more useful than trying several unrelated settings.
+
+## Add Island if it was left out
+
+Without an agent: open the full LOC SHELL ZIP on your modern computer. Upload
+only the files from its `LOCSHELL/ISLAND` folder to `/LOCSHELL/ISLAND` using the
+same FTP connection as game transfers. Keep an existing `VOLUME.CFG` and volume
+backup files. Finish the queue, disconnect, then select Island in Screensavers
+and press **P** to preview. Do not copy the package's empty game list over yours.
+
+With an agent, ask: “Install Island, keep my volume, select it and preview it.”
+The [included skill](../skills/locshell-management/SKILL.md) fetches the pinned
+pack and verifies the transfer automatically.

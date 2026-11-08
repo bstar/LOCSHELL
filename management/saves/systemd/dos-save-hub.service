@@ -6,7 +6,7 @@ After=network.target
 Type=simple
 # Install dosctl on PATH and create a private token file before enabling.
 # LAN clients require an explicit LAN address instead of the loopback default.
-ExecStart=%h/.local/bin/dosctl saves serve --token-file %h/.config/dosctl/saves.token
+ExecStart=%h/.local/bin/dosctl saves serve --token-file %h/.local/share/locshell/saves.token
 Restart=on-failure
 UMask=0077
 NoNewPrivileges=true

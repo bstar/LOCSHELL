@@ -31,12 +31,12 @@ static void locJobDraw(const char*phase,const char*id,const char*label,int start
  sprintf(line,"%.20s: %.30s [%.8s]",phase,label,id);locText(14,LOC_JOB_ROW,63,line,LOC_PANEL_ATTR);
  locText(78,LOC_JOB_ROW,1,!strnicmp(phase,"Failed",6)?"!":starting?">":"+",LOC_PANEL_ATTR);
 #ifdef LOC_AGENT_TEST
- {FILE*f=fopen(starting?"C:\\DOSSHELL\\JOBRUN.VID":"C:\\DOSSHELL\\JOBDONE.VID","wb");unsigned short row[80];if(f){for(i=0;i<25;i++){_fmemcpy(row,daVideo+i*80,sizeof row);fwrite(row,sizeof row,1,f);}fclose(f);}}
+ {FILE*f=fopen(starting?"C:\\LOCSHELL\\JOBRUN.VID":"C:\\LOCSHELL\\JOBDONE.VID","wb");unsigned short row[80];if(f){for(i=0;i<25;i++){_fmemcpy(row,daVideo+i*80,sizeof row);fwrite(row,sizeof row,1,f);}fclose(f);}}
 #endif
 }
 static void locRestoreCursor(void){union REGS r;r.h.ah=1;r.x.cx=locCursor;int86(0x10,&r,&r);r.h.ah=2;r.h.bh=0;r.x.dx=locCursorPos;int86(0x10,&r,&r);r.x.ax=0x1003;r.h.bl=1;r.h.bh=0;int86(0x10,&r,&r);}
 #endif
-#define ROOT "C:\\NET\\JOBS"
+#define ROOT "C:\\LOCSHELL\\NET\\JOBS"
 static int state(const char *s) { FILE *f=fopen("STATE.TXT","w"); int ok; if(!f)return 0;ok=fputs(s,f)>=0;if(fclose(f))ok=0;return ok; }
 static int execute(void) {
  char cwd[80],prog[128],label[96],args[128],kind[16],*v[32],*p; int n=1,out,old1,old2,old0,nul,rc; FILE *f;
@@ -60,15 +60,15 @@ static int execute(void) {
  if(locShellMode){char id[20]="--",phase[32];FILE*j=fopen("ID.TXT","r");if(j){fgets(id,sizeof id,j);fclose(j);}id[strcspn(id,"\r\n")]=0;if(rc<0)strcpy(phase,"Failed to start");else sprintf(phase,"Returned (rc=%d)",rc);locJobDraw(phase,id,label,0);locRestoreCursor();}
 #endif
  f=fopen("RESULT.TXT","w");if(f){fprintf(f,"%s\n%d\n",!strcmp(kind,"BAT")?"shell_exit_code":"program_exit_code",rc);fclose(f);}
- f=fopen("C:\\NET\\JOBS\\LAST.TXT","w");if(f){char id[20]="--";FILE *j=fopen("ID.TXT","r");if(j){fgets(id,sizeof(id),j);fclose(j);}fprintf(f,"%.8s\n%s (rc=%d)\n%.90s\n",id,rc<0?"FAILED TO START":"COMPLETED",rc,label);fclose(f);}
+ f=fopen("C:\\LOCSHELL\\NET\\JOBS\\LAST.TXT","w");if(f){char id[20]="--";FILE *j=fopen("ID.TXT","r");if(j){fgets(id,sizeof(id),j);fclose(j);}fprintf(f,"%.8s\n%s (rc=%d)\n%.90s\n",id,rc<0?"FAILED TO START":"COMPLETED",rc,label);fclose(f);}
  state(rc<0?"failed-to-start\n":"completed\n");return rc;
 }
 int main(int argc,char **argv) {
- const char *server=argc>1?argv[1]:"C:\\NET\\FTPSRV.EXE";int rc;FILE *f;
+ const char *server=argc>1?argv[1]:"C:\\LOCSHELL\\NET\\FTPSRV.EXE";int rc;FILE *f;
 #ifdef LOC_AGENT_SCREEN
  {const char*name=strrchr(server,'\\');locShellMode=!stricmp(name?name+1:server,"LOCSHELL.EXE");putenv(locShellMode?"LOC_AGENT_UI=1":"LOC_AGENT_UI=0");}
 #endif
- if(_chdrive(3)||chdir(ROOT)){puts("Cannot open C:\\NET\\JOBS");return 1;}
+ if(_chdrive(3)||chdir(ROOT)){puts("Cannot open C:\\LOCSHELL\\NET\\JOBS");return 1;}
  putenv("DOSAGENT_VERSION=2");
  /* Never replay work whose execution may already have begun. */
  if(!chdir("LOCK")){f=fopen("STATE.TXT","r");if(f){char s[40];fgets(s,sizeof(s),f);fclose(f);if(!strncmp(s,"running",7))state("interrupted\n");}chdir(ROOT);}

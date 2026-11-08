@@ -90,6 +90,6 @@ integration tests, not DOSBox or physical-machine acceptance.
 `dosctl saves --vault /private/vault dashboard --output VAULT.STA` reads the
 vault without modifying it, verifies published head metadata and emits a DOS
 CRLF report. Use the ordinary verified `dosctl put` to publish it to
-`/DOSSHELL/VAULT.STA`. No scheduled publisher or service is enabled by this
+`/LOCSHELL/VAULT.STA`. No scheduled publisher or service is enabled by this
 command. LOC SHELL displays the report timestamp, last backup and counts.
 Automatic sync and local-change/conflict checks remain off.

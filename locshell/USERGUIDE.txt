@@ -1,4 +1,4 @@
-LOC SHELL 2.2
+LOC SHELL 2.3
 =============
 
 START HERE
@@ -6,7 +6,7 @@ START HERE
 LOC SHELL is your DOS game menu and a way to receive files from a modern PC.
 An agent is optional. You can use the menu and send files yourself.
 
-1. Start C:\DOSSHELL\LOCSHELL.BAT. Press F2 for Home.
+1. Start C:\LOCSHELL\LOCSHELL.BAT. Press F2 for Home.
 2. Press G for Games. Choose a game with the arrows, then press Enter.
 3. Quit through the game's own menu. LOC SHELL and FTP return afterwards.
 
@@ -38,7 +38,7 @@ https://github.com/bstar/LOCSHELL/blob/main/docs/AGENT-GUIDE.md
 DETAILED REFERENCE
 ------------------
 
-Start C:\DOSSHELL\LOCSHELL.BAT. LOCSHELL.EXE also enters the same launcher
+Start C:\LOCSHELL\LOCSHELL.BAT. LOCSHELL.EXE also enters the same launcher
 when opened directly. The catalogue, FTP server, client/transfer views,
 activity history, screensavers and mTCP tools share the LOC SHELL interface.
 
@@ -73,7 +73,7 @@ claim that local saves match the vault. Automatic two-way sync is not active.
 Missing or invalid reports show unknown status; the card never invents a
 "Synced" state. V explains backup/report dates and unchecked local changes.
 On the host, `dosctl saves dashboard --output VAULT.STA` exports an actual report.
-Publish it to C:\DOSSHELL\VAULT.STA; the dashboard rereads it about every 2 seconds.
+Publish it to C:\LOCSHELL\VAULT.STA; the dashboard rereads it about every 2 seconds.
 RECENT.TXT is owned by the launch helper and protected from live FTP writes.
 
 The interface fills the 80x25 screen. The game list shows 18 rows and longer
@@ -119,7 +119,7 @@ choice without changing the saved saver.
 An idle timeout of 0 disables automatic saving. A key or mouse event wakes a
 saver without also triggering the action underneath it.
 
-All utilities are under C:\NET\BIN: DHCP, DNSTEST, FTP, HTGET, HTTPSERV, IRCJR,
+All utilities are under C:\LOCSHELL\NET\BIN: DHCP, DNSTEST, FTP, HTGET, HTTPSERV, IRCJR,
 NC, NETDRIVE, PING, PKTTOOL, SNTP, SPDTEST, TELNET and ND_CACHE. The original
 help is available from Tools. DHCP configuration changes and NetDrive resident
 or mount actions require an explicit local selection. NETDRIVE.SYS is supplied
@@ -180,7 +180,7 @@ Launch, return and updates
 Games and standalone utilities stop networking while they run. Pending launches
 wait for active transfers and connections; Esc cancels that wait. The combined
 application and supervisor release their memory before the program starts.
-The launcher returns to the C:\DOSSHELL directory before restarting.
+The launcher returns to the C:\LOCSHELL directory before restarting.
 
 A typed, checksummed handoff validates the intended command script and simple
 working-directory/executable paths. Interrupted requests are retained for
@@ -189,7 +189,7 @@ missing file/directory, rejected request, dispatch and program return. A return
 alone does not prove that a game or its music worked. A nonzero status is
 reported without assuming that every game treats it as a failure.
 
-Replacing LOCSHELL.EXE or uploading C:\DOSSHELL\RELOAD.REQ queues a safe reload.
+Replacing LOCSHELL.EXE or uploading C:\LOCSHELL\RELOAD.REQ queues a safe reload.
 Use RELOAD.REQ after the complete release has committed, including updates with
 unchanged size/timestamps. Reload waits for FTP clients and unfinished edits,
 saves preferences, then restarts through the batch launcher. Read-only pages
@@ -197,11 +197,22 @@ and menus yield automatically to reloads and management jobs. Unfinished
 learning confirmations persist across such a handoff.
 
 The installed support files are LOCSHELL.BAT, LCSMAIN.BAT, LOCHAND.EXE,
-MEMWATCH.COM and MEMLEARN.EXE. Existing LIBRARY.TXT, DOSSHELL.CFG, MEMORY.TSV
-and learned records remain compatible. CLASSIC.BAT and DSHELL.EXE retain the
+MEMWATCH.COM and MEMLEARN.EXE. Existing LIBRARY.TXT, LOCSHELL.CFG, MEMORY.TSV
+and learned records remain compatible. CLASSIC.BAT and LOCSOLO.EXE retain the
 standalone fallback. The classic FTP server remains available through
-C:\NET\NETFTP.BAT; its local shell shortcut opens LOC SHELL.
+C:\LOCSHELL\NET\NETFTP.BAT; its local shell shortcut opens LOC SHELL.
 
 Diagnostics: LOCSHELL.EXE /CHECK checks catalogue/memory without networking;
 /CHECKNET initializes the network, reports catalogue/memory, then exits.
 Automated emulator checks run headlessly with DOSBox close confirmation off.
+
+ONE APPLICATION FOLDER
+----------------------
+All LOC SHELL components use C:\LOCSHELL, including NET tools/configuration/jobs,
+ISLAND scene files and BACKUP recovery data. Existing games can keep their
+current directories; new installs default to C:\LOCSHELL\GAMES.
+The complete package includes Island automatically. An agent can also run
+dosctl --json scene install island --select --preview
+to fetch/prepare and verify the pinned pack while preserving volume settings.
+Use the migration guide before upgrading an older folder layout:
+https://github.com/bstar/LOCSHELL/blob/main/docs/MIGRATION.md

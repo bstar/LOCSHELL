@@ -39,15 +39,15 @@ with socket.socket() as probe:
     probe.bind(('127.0.0.1', a.port))
 work = Path(tempfile.mkdtemp(prefix='dashboard-', dir=exe.parent))
 c = work / 'drive'
-dos, net, frames = c / 'DOSSHELL', c / 'NET', work / 'frames'
-for d in (dos, net / 'AGENT', net / 'JOBS', c / 'GAMES/DEMO', frames):
+dos, net, frames = c / 'LOCSHELL', c / 'LOCSHELL/NET', work / 'frames'
+for d in (dos, net / 'AGENT', net / 'JOBS', c / 'LOCSHELL/GAMES/DEMO', frames):
     d.mkdir(parents=True, exist_ok=True)
 shutil.copyfile(exe, dos / 'LOCSHELL.EXE')
 shutil.copyfile(a.packet_driver, net / 'NE2000.COM')
 (dos / 'LIBRARY.TXT').write_text(
-    'Example game\n---FAVORITE---\nC:\nCD \\GAMES\\DEMO\nGAME.EXE\n\n')
+    'Example game\n---FAVORITE---\nC:\nCD \\LOCSHELL\\GAMES\\DEMO\nGAME.EXE\n\n')
 identity = 2166136261
-for byte in b'Example gameC:\nCD \\GAMES\\DEMO\nGAME.EXE\n':
+for byte in b'Example gameC:\nCD \\LOCSHELL\\GAMES\\DEMO\nGAME.EXE\n':
     identity = ((identity ^ byte) * 16777619) & 0xffffffff
 (dos / 'MEMORY.TSV').write_text('%08x|64|0|0|-|D|Example requirements\n' % identity)
 (net / 'AGENT/SAVER.CFG').write_text('off\n')
@@ -65,7 +65,7 @@ vault.close()
 (net / 'MTCP.CFG').write_text(
     'PACKETINT 0x60\nIPADDR 10.0.2.15\nNETMASK 255.255.255.0\n'
     'GATEWAY 10.0.2.2\nNAMESERVER 10.0.2.3\nMTU 1500\nHOSTNAME LOCDEMO\n'
-    'FTPSRV_PASSWORD_FILE C:\\NET\\USERS.TXT\nFTPSRV_CLIENTS 2\n'
+    'FTPSRV_PASSWORD_FILE C:\\LOCSHELL\\NET\\USERS.TXT\nFTPSRV_CLIENTS 2\n'
     'FTPSRV_CLOBBER_FILES true\nFTPSRV_PASV_BASE 15400\nFTPSRV_PASV_PORTS 256\n')
 conf = work / 'demo.conf'
 conf.write_text(
@@ -74,9 +74,9 @@ conf.write_text(
     '[ne2000]\nne2000=true\nbackend=slirp\nnicbase=300\nnicirq=3\n'
     '[ethernet, slirp]\ntcp_port_forwards=' + str(a.port) + ':21 15400-15655\n'
     '[autoexec]\nmount c "' + str(c) + '"\nc:\n'
-    'C:\\NET\\NE2000.COM 0x60 3 0x300 > C:\\NET\\DRIVER.TXT\n'
-    'SET MTCPCFG=C:\\NET\\MTCP.CFG\nSET DOSAGENT_VERSION=2\n'
-    'SET LOCSHELL_PROFILE=Demo PC\ncd \\dosshell\nLOCSHELL.EXE\nexit\n')
+    'C:\\LOCSHELL\\NET\\NE2000.COM 0x60 3 0x300 > C:\\LOCSHELL\\NET\\DRIVER.TXT\n'
+    'SET MTCPCFG=C:\\LOCSHELL\\NET\\MTCP.CFG\nSET DOSAGENT_VERSION=2\n'
+    'SET LOCSHELL_PROFILE=Demo PC\ncd \\locshell\nLOCSHELL.EXE\nexit\n')
 
 
 def snapshot():
@@ -138,7 +138,7 @@ try:
     recorder.start()
     time.sleep(1.2)
     payload = bytes(range(256)) * 2048
-    data = ftp.transfercmd('STOR /DRIVE_C/GAMES/DEMO/GAME.DAT')
+    data = ftp.transfercmd('STOR /DRIVE_C/LOCSHELL/GAMES/DEMO/GAME.DAT')
     for at in range(0, len(payload), 8192):
         data.sendall(payload[at:at + 8192])
         time.sleep(.09)
@@ -147,7 +147,7 @@ try:
     wait_text('Received')
     time.sleep(.8)
     import io
-    ftp.storbinary('STOR /DRIVE_C/GAMES/DEMO/SOUND.CFG', io.BytesIO(b'MUSIC=ADLIB\r\n'))
+    ftp.storbinary('STOR /DRIVE_C/LOCSHELL/GAMES/DEMO/SOUND.CFG', io.BytesIO(b'MUSIC=ADLIB\r\n'))
     time.sleep(1)
     # Set a small receive window before RETR, keeping actual DOS send progress
     # visible. Both directions are real FTP, deliberately paced for readability.
@@ -156,7 +156,7 @@ try:
     data.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 4096)
     data.settimeout(20)
     data.connect((host, port))
-    assert ftp.sendcmd('RETR /DRIVE_C/GAMES/DEMO/GAME.DAT').startswith('150')
+    assert ftp.sendcmd('RETR /DRIVE_C/LOCSHELL/GAMES/DEMO/GAME.DAT').startswith('150')
     received = bytearray()
     while True:
         part = data.recv(8192)

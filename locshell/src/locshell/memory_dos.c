@@ -1,5 +1,5 @@
 /* Read-only DOS/EMS/XMS observations. Largest block includes shell-owned MCBs
- * which DOS releases when DOSSHELL.BAT launches the selected program. */
+ * which DOS releases when LOCSHELL.BAT launches the selected program. */
 #include "memory.h"
 #include <dos.h>
 #include <string.h>

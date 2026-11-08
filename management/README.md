@@ -14,15 +14,15 @@ Test: `python tools/test_dos.py` (set DOSBOX to your DOSBox-X executable).
 The test FTP server is a native DOS stub; these tests do not establish physical
 packet-driver/network acceptance. Current compile target is 8086 real mode.
 
-Stage: `python tools/stage.py` uploads only new files under C:\NET\AGENT and
-creates C:\NET\JOBS. It refuses overwrites. Exit the current server locally and
-run `C:\NET\AGENT\START.BAT` for initial acceptance. Existing boot entry points
+Stage: `python tools/stage.py` uploads only new files under C:\LOCSHELL\NET\AGENT and
+creates C:\LOCSHELL\NET\JOBS. It refuses overwrites. Exit the current server locally and
+run `C:\LOCSHELL\NET\AGENT\START.BAT` for initial acceptance. Existing boot entry points
 remain unchanged until that acceptance succeeds. Revert by exiting the supervisor's
-server with no pending job and running C:\NET\FTPSRV.EXE directly with MTCPCFG set to C:\NET\MTCP.CFG.
+server with no pending job and running C:\LOCSHELL\NET\FTPSRV.EXE directly with MTCPCFG set to C:\LOCSHELL\NET\MTCP.CFG.
 Once startup is enabled, restore its local .before backups to revert future boots.
 
 Credentials: --credentials JSON with host, port, username, password. Default:
-~/.config/dosctl/access.json; no alternate credential paths are embedded in the public tool. Credentials are never included in Git.
+~/.local/share/locshell/access.json; no alternate credential paths are embedded in the public tool. Credentials are never included in Git.
 
 Examples:
 
@@ -74,7 +74,7 @@ retrieved result/output. Its initial180-second client wait expired; `dosctl resu
 subsequently recovered the SAME job and archived it without re-execution.
 Inventory now defaults to900 seconds, other jobs300; --timeout overrides both.
 Startup entry points NETFTP.BAT and NETMGR.BAT were updated only after acceptance;
-no reboot has been forced or claimed tested. Original FTPSRV remains in C:\NET.
+no reboot has been forced or claimed tested. Original FTPSRV remains in C:\LOCSHELL\NET.
 
 ## Machine operations display
 
@@ -84,7 +84,7 @@ This is not total free RAM or a guarantee of a child's memory availability.
 The log stays below the dashboard. The supervisor displays RUNNING and the
 launch command before handing DOS to a child; arbitrary programs can overwrite
 that screen, and no live refresh during a child is claimed. Last result is
-saved to C:\NET\JOBS\LAST.TXT and displayed after FTP returns.
+saved to C:\LOCSHELL\NET\JOBS\LAST.TXT and displayed after FTP returns.
 
 An integrated text-mode starfield starts after120 idle seconds with no active
 FTP clients. Keyboard input wakes it (the wake key is consumed); connecting
@@ -95,7 +95,7 @@ TSR, interrupt hooks, or resident animation are installed. Saver does not run
 inside arbitrary foreground jobs. `python tools/test_ui.py` tests the actual
 shared display code under DOSBox-X8086, including wake/restore/client inhibition.
 After replacing DOSAGENT.EXE, exit the server with no pending job and start
-C:\NET\NETFTP.BAT to load the new supervisor; uploading cannot change a resident
+C:\LOCSHELL\NET\NETFTP.BAT to load the new supervisor; uploading cannot change a resident
 parent executable. Original binaries are preserved under unique .BAK names.
 
 The starfield now uses first-person x/z,y/z perspective, with a precomputed
@@ -175,7 +175,7 @@ dosctl --json recipe doctor
 dosctl --json recipe memory
 dosctl --json recipe storage-check
 dosctl --json recipe storage-check --deep --path 'D:\DATA'
-dosctl --json inventory --path 'C:\NET\AGENT'
+dosctl --json inventory --path 'C:\LOCSHELL\NET\AGENT'
 dosctl --json recipe logs
 dosctl --json recipe deployment-check --manifest release.json
 dosctl --json status
@@ -186,7 +186,7 @@ dosctl --json reports --limit 10
 The public library contains doctor, memory, inventory, storage-check, logs and
 deployment-check. FTP-only checks do not stop the server. Scans/capacity/memory
 use a read-only DOSINFO.EXE helper or MEM job. Deploy DOSINFO.EXE to
-C:\NET\AGENT after building it with tools/build.py. No repair/delete command
+C:\LOCSHELL\NET\AGENT after building it with tools/build.py. No repair/delete command
 is part of these recipes. Inventory defaults to C:; --all-drives is explicit.
 Storage is capacity-only by default; --deep adds scoped file-size analysis.
 Optional --hash reads file contents to calculate CRC32 duplicate candidates,
@@ -199,12 +199,12 @@ waiting means a submitted job continues after the client stops waiting.
 status returns idle when there is no outstanding remote job. resume consults
 persistent local job records and retrieves the same ID without resubmission.
 Archived IDs remain available with result JOBID. Reports and job records are
-private under ~/.local/state/dosctl (DOSCTL_STATE_DIR overrides it); reports
+private under ~/.local/share/locshell/state (DOSCTL_STATE_DIR overrides it); reports
 lists cached collection times without connecting. Memory metrics describe the
 job context with FTP absent, not memory while the FTP child is resident.
 Use --label on run/exec to supply a readable task name; recipes do so automatically.
 
-Credentials are read from ~/.config/dosctl/access.json or --credentials. Keep
+Credentials are read from ~/.local/share/locshell/access.json or --credentials. Keep
 that file private. No machine/account credentials are included in this project.
 
 ### Private extensions
@@ -345,6 +345,6 @@ reload status share the same interface. Existing catalogue, memory observations,
 boot/driver configuration and saved preferences must survive an upgrade.
 
 `dosctl saves dashboard --output VAULT.STA` exports a read-only report of actual
-published backups. Publish it as `C:\DOSSHELL\VAULT.STA`. The report includes
+published backups. Publish it as `C:\LOCSHELL\VAULT.STA`. The report includes
 backup/report times; it does not claim local saves are synced. Native automatic
 two-way sync remains unfinished. See [vault status](saves/README.md).

@@ -44,7 +44,7 @@ static int daPreviewChoice=-1,daPreviewRestore=-1;
 #define DA_SAVER_COUNT 5
 #define DA_SAVER_OFF 4
 #ifndef DA_ISLAND_DIRECTORY
-#define DA_ISLAND_DIRECTORY "C:\\ISLAND"
+#define DA_ISLAND_DIRECTORY "C:\\LOCSHELL\\ISLAND"
 #endif
 static int daIsland=0;
 static const char *daSaverNames[DA_SAVER_COUNT]={"Starfield","387 Sculpture","387 Mandelbrot","Island","Off"};
@@ -56,7 +56,7 @@ static const char *daSaverNames[DA_SAVER_COUNT]={"Starfield","387 Sculpture","38
 static const char *daSaverKeys[DA_SAVER_COUNT]={"stars","sculpture","mandelbrot","off"};
 #endif
 #ifndef DA_SAVER_CONFIG
-#define DA_SAVER_CONFIG "C:\\NET\\AGENT\\SAVER.CFG"
+#define DA_SAVER_CONFIG "C:\\LOCSHELL\\NET\\AGENT\\SAVER.CFG"
 #endif
 #ifdef DA_GRAPHICS_SAVER
 #include "MATHSAVE.H"
@@ -277,7 +277,7 @@ static void daDraw(const char *state,const char *id,const char *command,unsigned
  lit=r.x.ax?(unsigned)(((unsigned long)maxblock*16UL*24UL)/((unsigned long)r.x.ax*1024UL)):0;if(lit>24)lit=24;
  daText(2,5,0x07,"FREE DOS BLOCK [");for(i=0;i<24;i++)daCell(5*80+18+i,((i<lit?0x0a:0x08)<<8)|(i<lit?219:176));
  sprintf(b,"] %lu KB",(unsigned long)maxblock/64UL);daText(42,5,0x0f,b);
- sprintf(b,"Alt-D DOS SHELL | Alt-V %s | Alt-P Preview | %lu s idle",daSaverNames[daSaver],daTimeout);daText(2,6,0x08,b);
+ sprintf(b,"Alt-D LOC SHELL | Alt-V %s | Alt-P Preview | %lu s idle",daSaverNames[daSaver],daTimeout);daText(2,6,0x08,b);
 #ifdef DA_GRAPHICS_SAVER
  if((daSaver==1||daSaver==2)&&!daFpu)daText(56,5,0x0e,"387 absent: stars");
 #endif

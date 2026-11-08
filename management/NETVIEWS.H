@@ -20,19 +20,19 @@ static void shellTransferFinished(FtpClient*c){netTransferFinished(c,1);}
 static void shellTransferFailed(FtpClient*c){netTransferFinished(c,0);}
 static void netManagedPoll(void){unsigned long now=daNow();if(netManagedCheck&&now-netManagedCheck<18UL)return;netManagedCheck=now;memset(&netManagedWork,0,sizeof netManagedWork);
  union REGS rr;struct SREGS sr;segread(&sr);rr.h.ah=0x2f;int86x(0x21,&rr,&rr,&sr);unsigned dtaSeg=sr.es,dtaOff=rr.x.bx;
- char state[40]="";netReadLine("C:\\NET\\JOBS\\LOCK\\STATE.TXT",state,sizeof state);
- int ready=access("C:\\NET\\JOBS\\LOCK\\READY",0)==0;
+ char state[40]="";netReadLine("C:\\LOCSHELL\\NET\\JOBS\\LOCK\\STATE.TXT",state,sizeof state);
+ int ready=access("C:\\LOCSHELL\\NET\\JOBS\\LOCK\\READY",0)==0;
  if(ready||!stricmp(state,"interrupted")||!stricmp(state,"failed-to-start")){
   netManagedWork.state=ready?DN_WORK_WAITING:DN_WORK_FAILED;
   strcpy(netManagedWork.detail,ready?"Queued":!stricmp(state,"interrupted")?"Interrupted":"Failed to start");
-  netReadLine("C:\\NET\\JOBS\\LOCK\\ID.TXT",netManagedWork.id,sizeof netManagedWork.id);
-  netReadLine("C:\\NET\\JOBS\\LOCK\\LABEL.TXT",netManagedWork.name,sizeof netManagedWork.name);
-  if(!*netManagedWork.name){FILE*f=fopen("C:\\NET\\JOBS\\LOCK\\REQUEST.TXT","r");char skip[128];if(f){fgets(skip,sizeof skip,f);fgets(skip,sizeof skip,f);if(fgets(netManagedWork.name,sizeof netManagedWork.name,f))netManagedWork.name[strcspn(netManagedWork.name,"\r\n")]=0;fclose(f);}}
+  netReadLine("C:\\LOCSHELL\\NET\\JOBS\\LOCK\\ID.TXT",netManagedWork.id,sizeof netManagedWork.id);
+  netReadLine("C:\\LOCSHELL\\NET\\JOBS\\LOCK\\LABEL.TXT",netManagedWork.name,sizeof netManagedWork.name);
+  if(!*netManagedWork.name){FILE*f=fopen("C:\\LOCSHELL\\NET\\JOBS\\LOCK\\REQUEST.TXT","r");char skip[128];if(f){fgets(skip,sizeof skip,f);fgets(skip,sizeof skip,f);if(fgets(netManagedWork.name,sizeof netManagedWork.name,f))netManagedWork.name[strcspn(netManagedWork.name,"\r\n")]=0;fclose(f);}}
   if(!*netManagedWork.name)strcpy(netManagedWork.name,"Remote management job");
  }else{
   struct stat st;time_t nowTime=time(NULL);
-  if(!stat("C:\\NET\\JOBS\\LAST.TXT",&st)&&nowTime>=st.st_mtime&&nowTime-st.st_mtime<=20){
-   FILE*f=fopen("C:\\NET\\JOBS\\LAST.TXT","r");if(f){fgets(netManagedWork.id,sizeof netManagedWork.id,f);fgets(netManagedWork.detail,sizeof netManagedWork.detail,f);fgets(netManagedWork.name,sizeof netManagedWork.name,f);fclose(f);
+  if(!stat("C:\\LOCSHELL\\NET\\JOBS\\LAST.TXT",&st)&&nowTime>=st.st_mtime&&nowTime-st.st_mtime<=20){
+   FILE*f=fopen("C:\\LOCSHELL\\NET\\JOBS\\LAST.TXT","r");if(f){fgets(netManagedWork.id,sizeof netManagedWork.id,f);fgets(netManagedWork.detail,sizeof netManagedWork.detail,f);fgets(netManagedWork.name,sizeof netManagedWork.name,f);fclose(f);
     netManagedWork.id[strcspn(netManagedWork.id,"\r\n")]=0;netManagedWork.detail[strcspn(netManagedWork.detail,"\r\n")]=0;netManagedWork.name[strcspn(netManagedWork.name,"\r\n")]=0;
     netManagedWork.state=!strnicmp(netManagedWork.detail,"FAILED",6)?DN_WORK_FAILED:DN_WORK_DONE;
    }
@@ -60,10 +60,10 @@ extern "C" DNResult ds_net_command(DNAction action,unsigned value,char*message,u
  if(action==DN_START){if(shuttingDown||ShutdownRequested>1){error="A management handoff is already in progress.";goto failed;}if(!shellOnline){shellRestart=1;error="Retrying network initialization.";goto pending;}if(!shellListen()){error="No listening socket is available.";goto failed;}shellEnabled=1;shellManualStop=shellDrain=0;return DN_OK;}
  if(action==DN_STOP){shellEnabled=0;shellManualStop=shellDrain=1;shellUnlisten();error="Stopping after transfers and connections finish.";goto pending;}
  if(action==DN_RESTART){shellReload=1;error="Restart queued; finish edits and disconnect FTP clients.";goto pending;}
- if(action==DN_AUTOSTART){if(!netWrite("C:\\DOSSHELL\\AUTONET.CFG",value!=0))goto failed;shellAutoStart=value!=0;return DN_OK;}
- if(action==DN_BEEP){if(!netWrite("C:\\NET\\AGENT\\BEEP.CFG",value!=0))goto failed;Sound=value!=0;return DN_OK;}
- if(action==DN_IDLE){if(value>3600){error="Idle timeout must be 0 to 3600 seconds.";goto failed;}if(!netWrite("C:\\NET\\AGENT\\IDLE.CFG",value))goto failed;daActivity();daTimeout=value;daTimeoutTicks=daTimeout*182UL/10UL;return DN_OK;}
- if(action==DN_SAVER){if(value>=DA_SAVER_COUNT){error="Unknown screensaver.";goto failed;}daActivity();FILE*f=fopen("C:\\NET\\AGENT\\SAVER.NEW","w");if(!f)goto failed;int ok=fprintf(f,"%s\n",daSaverKeys[value])>0;if(fclose(f))ok=0;if(!ok)goto failed;remove("C:\\NET\\AGENT\\SAVER.BAK");int exists=access(DA_SAVER_CONFIG,0)==0;if(exists&&rename(DA_SAVER_CONFIG,"C:\\NET\\AGENT\\SAVER.BAK"))goto failed;if(rename("C:\\NET\\AGENT\\SAVER.NEW",DA_SAVER_CONFIG)){if(exists)rename("C:\\NET\\AGENT\\SAVER.BAK",DA_SAVER_CONFIG);goto failed;}daSaver=value;return DN_OK;}
+ if(action==DN_AUTOSTART){if(!netWrite("C:\\LOCSHELL\\AUTONET.CFG",value!=0))goto failed;shellAutoStart=value!=0;return DN_OK;}
+ if(action==DN_BEEP){if(!netWrite("C:\\LOCSHELL\\NET\\AGENT\\BEEP.CFG",value!=0))goto failed;Sound=value!=0;return DN_OK;}
+ if(action==DN_IDLE){if(value>3600){error="Idle timeout must be 0 to 3600 seconds.";goto failed;}if(!netWrite("C:\\LOCSHELL\\NET\\AGENT\\IDLE.CFG",value))goto failed;daActivity();daTimeout=value;daTimeoutTicks=daTimeout*182UL/10UL;return DN_OK;}
+ if(action==DN_SAVER){if(value>=DA_SAVER_COUNT){error="Unknown screensaver.";goto failed;}daActivity();FILE*f=fopen("C:\\LOCSHELL\\NET\\AGENT\\SAVER.NEW","w");if(!f)goto failed;int ok=fprintf(f,"%s\n",daSaverKeys[value])>0;if(fclose(f))ok=0;if(!ok)goto failed;remove("C:\\LOCSHELL\\NET\\AGENT\\SAVER.BAK");int exists=access(DA_SAVER_CONFIG,0)==0;if(exists&&rename(DA_SAVER_CONFIG,"C:\\LOCSHELL\\NET\\AGENT\\SAVER.BAK"))goto failed;if(rename("C:\\LOCSHELL\\NET\\AGENT\\SAVER.NEW",DA_SAVER_CONFIG)){if(exists)rename("C:\\LOCSHELL\\NET\\AGENT\\SAVER.BAK",DA_SAVER_CONFIG);goto failed;}daSaver=value;return DN_OK;}
  if(action==DN_PREVIEW){if(!daTimeout||value>=DA_SAVER_COUNT||value==DA_SAVER_OFF){error="Enable a screensaver and a nonzero idle timeout first.";goto failed;}daPreviewChoice=(int)value;daPreviewPending=1;error="Preview queued until connected clients disconnect.";goto pending;}
  if(action==DN_DISCONNECT){if(value>=FtpClient::activeClients){error="The connection has already closed.";goto failed;}FtpClient*c=FtpClient::activeClientsTable[value];if(c->dataXferState!=FtpClient::DL_NotActive){error="Wait for this transfer to finish before disconnecting.";goto failed;}endSession(c);return DN_PENDING;}
  error="Unsupported network action.";

@@ -12,9 +12,9 @@ int main(int argc,char**argv){union REGS r;struct SREGS s;DLRecord record;unsign
  if(_dos_freemem(seg)){puts("Could not release observer memory.");return 2;}
  printf("Observed: resident=%u bytes, conventional peak=%lu bytes, EMS peak=%uK, XMS peak=%uK, failures=%u/%u/%u, samples=%u\n",record.stats.paras*16,(unsigned long)(record.stats.base_conv-record.stats.min_conv)*16UL,record.stats.base_ems-record.stats.min_ems,record.stats.base_xms-record.stats.min_xms,record.stats.fail_dos,record.stats.fail_ems,record.stats.fail_xms,record.stats.samples);
  if(argc>1&&!strcmp(argv[1],"/TEST"))return 0;
- f=fopen("C:\\DOSSHELL\\LEARN.REQ","r");if(!f){puts("No learning request; observation not attributed.");return 1;}if(fscanf(f,"%lx %lx",&record.id,&record.signature)!=2){fclose(f);return 1;}fclose(f);record.disposition=DL_PARTIAL;
+ f=fopen("C:\\LOCSHELL\\LEARN.REQ","r");if(!f){puts("No learning request; observation not attributed.");return 1;}if(fscanf(f,"%lx %lx",&record.id,&record.signature)!=2){fclose(f);return 1;}fclose(f);record.disposition=DL_PARTIAL;
  if(!dl_append(&record)){puts("Could not save observation; request retained.");return 1;}
  /* Every explicitly monitored run gets its own answer, including repeats
     where the game may have saved new sound/configuration settings. */
- f=fopen("C:\\DOSSHELL\\LEARN.ASK","w");if(f){fprintf(f,"%08lx\n",record.id);fclose(f);}remove("C:\\DOSSHELL\\LEARN.REQ");return 0;
+ f=fopen("C:\\LOCSHELL\\LEARN.ASK","w");if(f){fprintf(f,"%08lx\n",record.id);fclose(f);}remove("C:\\LOCSHELL\\LEARN.REQ");return 0;
 }

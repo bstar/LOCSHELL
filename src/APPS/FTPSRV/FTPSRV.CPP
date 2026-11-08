@@ -416,24 +416,24 @@ static char ConfirmEndMsg[] = "Press Ctrl-C or Alt-X one more time to shut down 
 static char CopyrightMsg1[] = "mTCP FtpSrv by M Brutman (mbbrutman@gmail.com) (C)opyright 2010-2026\n";
 static char CopyrightMsg2[] = "Version: " __DATE__ "\n\n";
 
-/* Local keyboard handoff. The batch wrapper starts DOS SHELL only after the
+/* Local keyboard handoff. The batch wrapper starts LOC SHELL only after the
    server and supervisor have exited, preserving interactive console handles. */
-static int requestDosShell(void) {
-  if (FtpClient::activeClients || access("C:\\NET\\JOBS\\LOCK",0)==0) {
-    addToScreen(0,"DOS SHELL: disconnect clients and finish the pending job first\n");return 0;
+static int requestLocShell(void) {
+  if (FtpClient::activeClients || access("C:\\LOCSHELL\\NET\\JOBS\\LOCK",0)==0) {
+    addToScreen(0,"LOC SHELL: disconnect clients and finish the pending job first\n");return 0;
   }
-  if (!getenv("DOSAGENT_VERSION") || access("C:\\NET\\AGENT\\SHELL.OK",0) || access("C:\\DOSSHELL\\DOSSHELL.BAT",0)) {
-    addToScreen(0,"DOS SHELL handoff is not installed\n");return 0;
+  if (!getenv("DOSAGENT_VERSION") || access("C:\\LOCSHELL\\NET\\AGENT\\SHELL.OK",0) || access("C:\\LOCSHELL\\LOCSHELL.BAT",0)) {
+    addToScreen(0,"LOC SHELL handoff is not installed\n");return 0;
   }
-  if (access("C:\\NET\\AGENT\\SHELL.REQ",0)==0) {
-    addToScreen(0,"DOS SHELL: an earlier handoff request still exists\n");return 0;
+  if (access("C:\\LOCSHELL\\NET\\AGENT\\SHELL.REQ",0)==0) {
+    addToScreen(0,"LOC SHELL: an earlier handoff request still exists\n");return 0;
   }
-  FILE *f=fopen("C:\\NET\\AGENT\\SHELL.NEW","w");if(!f)return 0;
-  int ok=fputs("Interactive DOS SHELL request\n",f)>=0;if(fclose(f))ok=0;
-  if(!ok||rename("C:\\NET\\AGENT\\SHELL.NEW","C:\\NET\\AGENT\\SHELL.REQ")) {
-    remove("C:\\NET\\AGENT\\SHELL.NEW");addToScreen(0,"Unable to request DOS SHELL\n");return 0;
+  FILE *f=fopen("C:\\LOCSHELL\\NET\\AGENT\\SHELL.NEW","w");if(!f)return 0;
+  int ok=fputs("Interactive LOC SHELL request\n",f)>=0;if(fclose(f))ok=0;
+  if(!ok||rename("C:\\LOCSHELL\\NET\\AGENT\\SHELL.NEW","C:\\LOCSHELL\\NET\\AGENT\\SHELL.REQ")) {
+    remove("C:\\LOCSHELL\\NET\\AGENT\\SHELL.NEW");addToScreen(0,"Unable to request LOC SHELL\n");return 0;
   }
-  addToScreen(0,"Opening DOS SHELL; FTP resumes when you exit the shell\n");return 1;
+  addToScreen(0,"Opening LOC SHELL; FTP resumes when you exit the shell\n");return 1;
 }
 
 
@@ -604,8 +604,8 @@ int main( int argc, char *argv[] ) {
               else if ( key == 35 ) {   // Alt-H, Help
                 doConsoleHelp( );
               }
-              else if ( key == 32 ) {   // Alt-D, release server memory and open DOS SHELL
-                if (requestDosShell()) ShutdownRequested=2;
+              else if ( key == 32 ) {   // Alt-D, release server memory and open LOC SHELL
+                if (requestLocShell()) ShutdownRequested=2;
               }
               else if ( key == 45 ) {   // Alt-X, EndProgram
                 // Use ++ here in case another mechanism has already triggered a shutdown.
@@ -1453,7 +1453,7 @@ void doSite( FtpClient *client, char *nextTokenPtr ) {
 
   if ( stricmp( siteCmd, "agent" ) == 0 ) { client->addToOutput("211 DOSCTL protocol=2 ftp=2 jobs=1 labels=1 savers=1 mathrev=4 sculptseed=1 island=1"
 #ifdef LOC_SHELL_EMBEDDED
-      " locshell=22 statusrows=2 ramfit=1 bootreq=1 dashboard=1 recent=1 autoreload=1"
+      " locshell=23 layout=2 saverselect=1 statusrows=2 ramfit=1 bootreq=1 dashboard=1 recent=1 autoreload=1"
 #endif
       );
 #ifdef LOC_SHELL_EMBEDDED
@@ -1476,7 +1476,19 @@ void doSite( FtpClient *client, char *nextTokenPtr ) {
   }
   else if ( stricmp( siteCmd, "saver" ) == 0 ) {
     char action[12]; nextTokenPtr=Utils::getNextToken(nextTokenPtr, action, sizeof(action));
-    if (!stricmp(action, "preview")) {
+    if (!stricmp(action, "select")) {
+#ifdef LOC_SHELL_EMBEDDED
+      if (!client->user.hasPermission(FtpUser::cmd_SITEQUIT)) {client->addToOutput(Msg_550_Permission_Denied);return;}
+      char choice[16],message[80];unsigned kind;
+      Utils::getNextToken(nextTokenPtr,choice,sizeof(choice));
+      for(kind=0;kind<DA_SAVER_COUNT;kind++)if(!stricmp(choice,daSaverKeys[kind]))break;
+      if(kind==DA_SAVER_COUNT){client->addToOutput("501 Unknown saver" _NL_);return;}
+      if(ds_net_command(DN_SAVER,kind,message,sizeof(message))==DN_ERROR)client->addToOutput_var("550 %s" _NL_,message);
+      else client->addToOutput_var("211 Saved screensaver=%s" _NL_,choice);
+#else
+      client->addToOutput("502 Selection requires LOC SHELL" _NL_);
+#endif
+    } else if (!stricmp(action, "preview")) {
       if (!client->user.hasPermission(FtpUser::cmd_SITEQUIT)) {
         client->addToOutput(Msg_550_Permission_Denied); return;
       }
@@ -1497,7 +1509,7 @@ void doSite( FtpClient *client, char *nextTokenPtr ) {
       client->addToOutput_var("211 SAVER selected=%s kind=%u seed=%lu frames=%lu ticks=%lu first_ticks=%lu island_frames=%lu island_ticks=%lu island_error=%u island_adlib=%u island_fault=%u island_volume=%u island_twinkles=%u" _NL_,
         daSaverKeys[daSaver], msLastKind, msLastSeed, msFrames, msElapsedTicks, msFirstFrameTicks,
         isFrames,isSceneTicks,isError,isAdlib,isFault,isGetVolume(),dsTwinkles);
-    } else client->addToOutput("501 Use SITE SAVER [PREVIEW [name]]" _NL_);
+    } else client->addToOutput("501 Use SITE SAVER [SELECT name | PREVIEW [name]]" _NL_);
   }
   else if ( stricmp( siteCmd, "stats" ) == 0 ) {
     doSiteStats( client );
@@ -2113,7 +2125,7 @@ void doRnto( FtpClient *client, char *nextTokenPtr ) {
 
     // Good, it does not exist yet
 
-    if ( rename( client->filespec, fullpath ) == 0 ) { if(!stricmp(fullpath,"C:\\DOSSHELL\\LOCSHELL.EXE"))shellReload=1; shellContextWritten(fullpath); shellContextWritten(client->filespec); shellFileChanged("Renamed",fullpath,0,1);
+    if ( rename( client->filespec, fullpath ) == 0 ) { if(!stricmp(fullpath,"C:\\LOCSHELL\\LOCSHELL.EXE"))shellReload=1; shellContextWritten(fullpath); shellContextWritten(client->filespec); shellFileChanged("Renamed",fullpath,0,1);
       addToScreen( 1, "(%lu) RNTO %s to %s\n", client->sessionId, client->filespec, fullpath );
       client->addToOutput_var( Msg_250_Cmd_Successful_v, "Rename" );
     }
@@ -4309,15 +4321,15 @@ mTCP FTPSrv: Total Connections: 00000  Active Sessions: 00
 void redrawStatusLine( void ) {
   if(daSleeping)return;
   char state[40]="READY",id[20]="--",cmd[128]="Awaiting workstation jobs",ip[24];FILE *f;
-  f=fopen("C:\\NET\\JOBS\\LOCK\\STATE.TXT","r");
-  if(f){fgets(state,sizeof(state),f);fclose(f);f=fopen("C:\\NET\\JOBS\\LOCK\\ID.TXT","r");if(f){fgets(id,sizeof(id),f);fclose(f);}f=fopen("C:\\NET\\JOBS\\LOCK\\REQUEST.TXT","r");if(f){char skip[128];fgets(skip,sizeof(skip),f);fgets(skip,sizeof(skip),f);fgets(cmd,sizeof(cmd),f);fclose(f);}}
-  else {f=fopen("C:\\NET\\JOBS\\LAST.TXT","r");if(f){fgets(id,sizeof(id),f);fgets(state,sizeof(state),f);fgets(cmd,sizeof(cmd),f);fclose(f);}}
+  f=fopen("C:\\LOCSHELL\\NET\\JOBS\\LOCK\\STATE.TXT","r");
+  if(f){fgets(state,sizeof(state),f);fclose(f);f=fopen("C:\\LOCSHELL\\NET\\JOBS\\LOCK\\ID.TXT","r");if(f){fgets(id,sizeof(id),f);fclose(f);}f=fopen("C:\\LOCSHELL\\NET\\JOBS\\LOCK\\REQUEST.TXT","r");if(f){char skip[128];fgets(skip,sizeof(skip),f);fgets(skip,sizeof(skip),f);fgets(cmd,sizeof(cmd),f);fclose(f);}}
+  else {f=fopen("C:\\LOCSHELL\\NET\\JOBS\\LAST.TXT","r");if(f){fgets(id,sizeof(id),f);fgets(state,sizeof(state),f);fgets(cmd,sizeof(cmd),f);fclose(f);}}
   state[strcspn(state,"\r\n")]=0;id[strcspn(id,"\r\n")]=0;cmd[strcspn(cmd,"\r\n")]=0;
   if(strlen(id)==8&&id[0]=='J'&&strspn(id+1,"0123456789ABCDEF")==7){
     char path[80],owner[20]="";
-    sprintf(path,"C:\\NET\\JOBS\\%s\\LABEL.TXT",id);f=fopen(path,"r");
-    if(!f){FILE *o=fopen("C:\\NET\\JOBS\\LOCK\\ID.TXT","r");if(o){fgets(owner,sizeof(owner),o);fclose(o);owner[strcspn(owner,"\r\n")]=0;}
-      if(!strcmp(owner,id))f=fopen("C:\\NET\\JOBS\\LOCK\\LABEL.TXT","r");}
+    sprintf(path,"C:\\LOCSHELL\\NET\\JOBS\\%s\\LABEL.TXT",id);f=fopen(path,"r");
+    if(!f){FILE *o=fopen("C:\\LOCSHELL\\NET\\JOBS\\LOCK\\ID.TXT","r");if(o){fgets(owner,sizeof(owner),o);fclose(o);owner[strcspn(owner,"\r\n")]=0;}
+      if(!strcmp(owner,id))f=fopen("C:\\LOCSHELL\\NET\\JOBS\\LOCK\\LABEL.TXT","r");}
     if(f){fgets(cmd,sizeof(cmd),f);cmd[strcspn(cmd,"\r\n")]=0;fclose(f);}
   }
   sprintf(ip,"%u.%u.%u.%u",MyIpAddr[0],MyIpAddr[1],MyIpAddr[2],MyIpAddr[3]);
@@ -4374,7 +4386,7 @@ void doConsoleHelp( void ) {
   
   addToScreen( 0, "\n%s  %s", CopyrightMsg1, CopyrightMsg2 );
   addToScreen( 0, "Alt B: Toggle beeper   Alt-S: Stats   Alt-U: Users   Alt-X: Exit\n" );
-  addToScreen(0,"Alt-D: DOS SHELL (FTP pauses; resumes after shell exit)\n");
+  addToScreen(0,"Alt-D: LOC SHELL (FTP pauses; resumes after shell exit)\n");
   addToScreen( 0, "Alt-V: Cycle/save saver   Alt-P: Preview (no connected clients)\n" );
   showRealIpAddr( 0 );
   addToScreen( 0, "\n" );

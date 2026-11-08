@@ -16,6 +16,7 @@ def path_for(api,ident):
 def invoke(a,args):
  command=[sys.executable,str(Path(__file__).with_name('dosctl.py')),'--json']
  if a.credentials:command+=['--credentials',str(a.credentials)]
+ if getattr(a,'job_root',None):command+=['--job-root',a.job_root]
  p=subprocess.run(command+args,capture_output=True,text=True);r=json.loads(p.stdout)
  if p.returncode and args[0]=='result' and (str(r.get('error',''))[:3] in ('421','425','426') or r.get('state') in ('unreachable','busy')):return {'state':'waiting','diagnostic':r}
  if p.returncode and r.get('state') not in ('waiting','completed'):raise RuntimeError(json.dumps(r))
@@ -26,9 +27,9 @@ def start(a,api):
  if any(not re.fullmatch(r'[C-Fc-f]:\\[^*?\r\n\t]*',x) or len(x)>75 for x in paths):raise ValueError('Invalid scan root')
  ident='T'+secrets.token_hex(4)[:7].upper();record={'id':ident,'kind':'scan','state':'ready','created_at':now(),'paths':paths,'limit':a.batch,'step':0,'files':0,'cancel_requested':False,'scope':api.state_dir(a).name}
  with api.connect(a) as f:
-  try:f.mkd('/NET/TASKS')
-  except api.ftplib.error_perm:f.cwd('/NET/TASKS');f.cwd('/')
-  f.mkd('/NET/TASKS/'+ident);api.put(f,'/NET/TASKS/'+ident+'/ROOTS.TXT',('\r\n'.join(paths)+'\r\n').encode('cp437'))
+  try:f.mkd('/LOCSHELL/NET/TASKS')
+  except api.ftplib.error_perm:f.cwd('/LOCSHELL/NET/TASKS');f.cwd('/')
+  f.mkd('/LOCSHELL/NET/TASKS/'+ident);api.put(f,'/LOCSHELL/NET/TASKS/'+ident+'/ROOTS.TXT',('\r\n'.join(paths)+'\r\n').encode('cp437'))
  save(path_for(api,ident),record);history(api,'flow-created',flow=ident,paths=paths);return record
 
 def step(a,api):
@@ -48,7 +49,7 @@ def step(a,api):
   else:
    r['state']='submitting';checkpoint(path,r)
    if r['cancel_requested']:r['state']='cancelled';checkpoint(path,r);return r
-   result=invoke(a,['exec','C:\\NET\\AGENT\\DOSINFO.EXE','--detach','--label',label,'--cwd','C:\\NET\\TASKS\\'+r['id'],'--','--chunk',str(r['limit'])])
+   result=invoke(a,['exec','C:\\LOCSHELL\\NET\\AGENT\\DOSINFO.EXE','--detach','--label',label,'--cwd','C:\\LOCSHELL\\NET\\TASKS\\'+r['id'],'--','--chunk',str(r['limit'])])
    r['job']=result['id'];r['state']='waiting';checkpoint(path,r)
  # Retrieve the same job; result never launches a new command.
  deadline=time.monotonic()+(a.timeout or 300)

@@ -60,10 +60,10 @@ int main(void) {
   restored();assert(getcwd(after,sizeof(after)) && !strcmp(before,after));
  }
  for(i=0;i<3;i++)_ffree(reserve[i]);
- assert(!rename("C:\\ISLAND\\SCENE.EGA","C:\\ISLAND\\MISSING.EGA"));
+ assert(!rename("C:\\LOCSHELL\\ISLAND\\SCENE.EGA","C:\\LOCSHELL\\ISLAND\\MISSING.EGA"));
  daSaver=3;daPreview();daPoll(0);assert(daSleeping && !daIsland && isError==1);
  daPoll(1);restored();
- assert(!rename("C:\\ISLAND\\MISSING.EGA","C:\\ISLAND\\SCENE.EGA"));
+ assert(!rename("C:\\LOCSHELL\\ISLAND\\MISSING.EGA","C:\\LOCSHELL\\ISLAND\\SCENE.EGA"));
  daSaver=DA_SAVER_OFF;daPreviewChoice=3;daPreviewPending=1;daPoll(1);
  assert(!daSleeping && daPreviewPending && daSaver==DA_SAVER_OFF);
  daPoll(0);assert(daSleeping && daIsland && daSaver==3);

@@ -12,13 +12,13 @@ import subprocess
 R = Path(__file__).resolve().parents[1]
 B = Path(os.environ.get('DOS_BUILD_DIR', R / 'build')).resolve()
 O = B / 'locshell-test'
-S = R / 'locshell/src/dosshell'
+S = R / 'locshell/src/locshell'
 T = R / 'locshell/tests'
 C = O / 'drive-c'
 D = O / 'drive-d'
-APP = C / 'DOSSHELL'
+APP = C / 'LOCSHELL'
 GAME = D / 'GAMES/DEMO/ONE'
-for path in (APP, GAME, C / 'NET/AGENT'):
+for path in (APP, GAME, APP / 'NET/AGENT'):
     path.mkdir(parents=True, exist_ok=True)
 
 
@@ -54,7 +54,7 @@ def identity(title, commands):
 entries, memory = [], []
 for i in range(48):
     title = 'Example application %02d' % i
-    commands = 'C:\nCD \\DOSSHELL\nFIXTURE.EXE\n'
+    commands = 'C:\nCD \\LOCSHELL\nFIXTURE.EXE\n'
     entries.append(title + '\n---GENRE---Demo\n---SERIES---Examples\n'
                    '---DEVELOPER---Fixture\n---PUBLISHER---Fixture\n'
                    '---YEAR---1991\n---STATUS---Utility\n---FAVORITE---\n' + commands + '\n')
@@ -64,18 +64,20 @@ write(APP / 'MEMORY.TSV', ''.join(memory))
 common = [S / (name + '.c') for name in ('library', 'memory', 'memory_dos', 'learn', 'launch')]
 for name, source in [('DASHTEST', 'dashboard_test.c'), ('RENDER', 'render_test.c'),
                      ('MEMUI', 'memory_ui_test.c')]:
-    compile(name, [*common, T / 'dosshell' / source])
-compile('MEMTEST', [S / 'memory.c', T / 'dosshell/memory_test.c'])
+    compile(name, [*common, T / 'locshell' / source])
+compile('MEMTEST', [S / 'memory.c', T / 'locshell/memory_test.c'])
 compile('LEARNMOD', [S / 'learn.c', T / 'memlearn/learn_model.c'])
 compile('FIXTURE', [T / 'memlearn/fixture.c'], small=True)
 compile('HTEST', [T / 'memlearn/handoff_test.c', S / 'launch.c'], small=True)
 shutil.copyfile(B / 'LOCHAND.EXE', APP / 'LOCHAND.EXE')
 shutil.copyfile(APP / 'FIXTURE.EXE', GAME / 'CHILD.EXE')
+(APP/'NET/BIN').mkdir(parents=True,exist_ok=True)
+shutil.copyfile(APP/'FIXTURE.EXE',APP/'NET/BIN/PING.EXE')
 run(['nasm', '-f', 'bin', T / 'memlearn/game_loader.asm', '-o', GAME / 'DEMO.COM'])
 
 write(APP / 'TEST.BAT', r'''@ECHO OFF
 C:
-CD \DOSSHELL
+CD \LOCSHELL
 SET CONFIG=N
 MEMTEST.EXE > MEMORY.TXT
 LEARNMOD.EXE > LEARN.TXT
@@ -89,10 +91,10 @@ LOCHAND.EXE /CLAIM
 IF ERRORLEVEL 2 GOTO FAIL
 IF NOT ERRORLEVEL 1 GOTO FAIL
 LOCHAND.EXE /ENTER
-CALL C:\DOSSHELL\RUN.BAT
-C:\DOSSHELL\LOCHAND.EXE /RETURN 0
+CALL C:\LOCSHELL\RUN.BAT
+C:\LOCSHELL\LOCHAND.EXE /RETURN 0
 C:
-CD \DOSSHELL
+CD \LOCSHELL
 LOCHAND.EXE /RESUME
 HTEST.EXE TOOL
 LOCHAND.EXE /CLAIM
@@ -130,7 +132,7 @@ conf = O / 'test.conf'
 conf.write_text('[sdl]\noutput=surface\n[dosbox]\nquit warning=false\nmemsize=4\n'
                 '[cpu]\ncore=normal\ncputype=386\ncycles=fixed 120000\n'
                 '[autoexec]\nmount c "' + str(C) + '"\nmount d "' + str(D) +
-                '"\nc:\nCALL C:\\DOSSHELL\\TEST.BAT\nexit\n')
+                '"\nc:\nCALL C:\\LOCSHELL\\TEST.BAT\nexit\n')
 with (O / 'dosbox.log').open('w') as log:
     subprocess.run([os.environ.get('DOSBOX', 'dosbox-x'), '-fastlaunch', '-silent',
                     '-nomenu', '-nogui', '-conf', str(conf)], cwd=O,

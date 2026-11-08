@@ -131,7 +131,7 @@ Examples below call the controller `dosctl`. If it is not installed on PATH,
 run `python3 management/dosctl.py` from the repository in its place. The
 controller uses Python's standard library on the documented Linux host.
 
-Its default private credentials file is `~/.config/dosctl/access.json`:
+Its default private credentials file is `~/.local/share/locshell/access.json`:
 
 ```json
 {"host":"YOUR-RETRO-IP","port":21,"username":"YOUR-USER","password":"YOUR-PASSWORD"}
@@ -193,11 +193,11 @@ Example release structure, with intentionally nonworking placeholders:
 ```json
 {
   "name": "My Game - exact edition",
-  "preserve": ["/GAMES/MYGAME/SAVEGAME/*"],
+  "preserve": ["/LOCSHELL/GAMES/MYGAME/SAVEGAME/*"],
   "files": [
     {
       "source": "/absolute/host/path/MYGAME/GAME.EXE",
-      "destination": "/GAMES/MYGAME/GAME.EXE",
+      "destination": "/LOCSHELL/GAMES/MYGAME/GAME.EXE",
       "sha256": "REPLACE-WITH-THE-FILE-S-ACTUAL-64-HEX-DIGIT-SHA256"
     }
   ]
@@ -227,13 +227,13 @@ job that copies from a staging directory on C:. Read back staged results through
 C: as needed. Do not bypass the FTP sandbox with crafted paths.
 
 The active server rejects live FTP writes to its owned catalogue/state files:
-`LIBRARY.*`, `MEMORY.*`, `DOSSHELL.*`, `LEARN.*`, `NETSTATE.*` and `RECENT.*` in
-`C:\DOSSHELL`. Sending `LIBRARY.TXT` directly and hoping for a refresh is not a
+`LIBRARY.*`, `MEMORY.*`, `LOCSHELL.*`, `LEARN.*`, `NETSTATE.*` and `RECENT.*` in
+`C:\LOCSHELL`. Sending `LIBRARY.TXT` directly and hoping for a refresh is not a
 supported update method.
 
 For a remote catalogue update: download the latest list, merge without losing
 metadata/variants, validate the format, and upload the candidate under a new
-name in a private staging directory outside `C:\DOSSHELL`. Submit a bounded
+name in a private staging directory outside `C:\LOCSHELL`. Submit a bounded
 native job to recheck the expected old catalogue, retain a unique backup and
 install the candidate while the shell is stopped. Check explicit copy/result
 markers, then retrieve and compare the final file after the shell returns.
@@ -262,11 +262,11 @@ memory/setup context, but do not prove the configuration works.
 For a shell release, finish matching helpers/docs before requesting reload.
 Replacing `LOCSHELL.EXE` queues reload; it should be the final executable
 replacement. After the complete release is installed, publishing
-`C:\DOSSHELL\RELOAD.REQ` also requests reload, including when size/timestamps
+`C:\LOCSHELL\RELOAD.REQ` also requests reload, including when size/timestamps
 are unchanged. Disconnect all FTP clients and let edits finish. A reload is not
 a DOS reboot and cannot replace a resident driver or an already loaded parent.
 
-Preserve `LIBRARY.TXT`, `DOSSHELL.CFG`, `MEMORY.TSV`, `LEARN.DAT`, `RECENT.TXT`,
+Preserve `LIBRARY.TXT`, `LOCSHELL.CFG`, `MEMORY.TSV`, `LEARN.DAT`, `RECENT.TXT`,
 network credentials/settings, game saves and private machine recipes. Do not
 deploy emulator test-hook builds. Do not install experimental serial observers
 or change NIC/IRQ/ROM settings as an incidental part of a game install.
@@ -284,3 +284,24 @@ cancel the submitted job. One outstanding job is serialized through `LOCK`.
 Never delete `LOCK`/`READY` or replay a request just to get past a timeout.
 Use result retrieval/recovery and inspect the journal if ownership is uncertain.
 There is no general remote keyboard or guaranteed remote kill.
+
+## Automatic Island installation and agent skill
+
+Use the included [LOC SHELL management skill](../skills/locshell-management/SKILL.md)
+for repeatable scene/game/configuration work. All DOS application components live
+inside `C:\LOCSHELL`; private controller data lives inside
+`~/.local/share/locshell` (or `LOCSHELL_HOME`).
+
+Ask: “Install the Island screensaver, preserve my volume, select it, and preview
+it when ready.” The controller commands are:
+
+```sh
+dosctl --json scene install island --dry-run
+dosctl --json scene install island --select --preview
+```
+
+They fetch the pinned scene source if necessary, prepare the complete pack,
+retain credits and verify every installed file. The existing volume/recovery
+files are preserved. Read [migration and activation](MIGRATION.md) for old-layout
+imports and the one-time local switchover. Do not deploy new-path binaries into
+a previous layout and expect its older wrappers to find them.

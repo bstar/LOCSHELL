@@ -429,7 +429,7 @@ hook2f:
  iret
 .chain:
  jmp far [cs:old2f]
-collector_name db 'C:\DOSSHELL\MEMLEARN.EXE',0
+collector_name db 'C:\LOCSHELL\MEMLEARN.EXE',0
 resident_end:
 
 install:

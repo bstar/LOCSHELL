@@ -7,7 +7,8 @@ from .backup import export, import_backup, verify
 from .decisions import choose, fork
 from .dashboard import report as dashboard_report, encode as dashboard_encode
 
-DEFAULT = Path.home() / '.local/share/dosctl/saves'
+from layout import VAULT
+DEFAULT = VAULT
 
 def parser(sub):
     p = sub.add_parser('saves', help='Manage the game-save vault')

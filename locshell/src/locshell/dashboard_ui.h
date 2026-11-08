@@ -25,7 +25,7 @@ static void dash_load_links(void){unsigned i,j;int item;
 }
 static void dash_read_vault(unsigned long now){FILE*f;char line[128],*value;unsigned n=0,fields=0;char mode[16]="",state[16]="",last[24]="",reported[24]="",detail[80]="";unsigned games=0,snaps=0;
  if(dash_vault_tick&&now-dash_vault_tick<36UL)return;dash_vault_tick=now?now:1;
- f=fopen("C:\\DOSSHELL\\VAULT.STA","r");if(!f){dash_vault_known=0;return;}
+ f=fopen("C:\\LOCSHELL\\VAULT.STA","r");if(!f){dash_vault_known=0;return;}
  if(!fgets(line,sizeof line,f)||strcmp(line,"LOC_VAULT 1\n")){fclose(f);dash_vault_known=0;return;}
  while(n++<16&&fgets(line,sizeof line,f)){line[strcspn(line,"\r\n")]=0;value=strchr(line,'=');if(!value)continue;*value++=0;
   if(!strcmp(line,"MODE")){strncpy(mode,value,sizeof mode-1);fields|=1;}

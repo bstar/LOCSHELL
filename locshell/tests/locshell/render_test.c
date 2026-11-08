@@ -1,7 +1,7 @@
 /* Native DOS acceptance tests for partial painting and navigation cost. */
-#define DOSSHELL_RENDER_TEST
-#define main dosshell_program_main
-#include "../../src/dosshell/dosshell.c"
+#define LOCSHELL_RENDER_TEST
+#define main locshell_program_main
+#include "../../src/locshell/locshell.c"
 #undef main
 
 static FILE *report;

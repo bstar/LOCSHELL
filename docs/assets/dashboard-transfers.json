@@ -1,13 +1,13 @@
 {
-  "frames": 173,
+  "frames": 175,
   "fps": 5,
-  "duration_seconds": 34.6,
+  "duration_seconds": 35.0,
   "capture": "Real DOS VGA text cells and BIOS font; emulated Ethernet FTP",
   "sample_files_only": true,
   "transfers_paced_for_readability": true,
   "round_trip_sha256": "33bc8aab40703678c3ebe94d2dd8f2afff285dd901f9234e841e4679f8204fd5",
   "metrics": "211 DASHBOARD files_in=2 files_out=1 uploaded=524301 downloaded=524288 failed=0 changes=3 uptime=34",
-  "gif_bytes": 345172,
+  "gif_bytes": 345878,
   "packet_driver_sha256": "f8b4cb8d1b93210045c591e23d21f8043a5397a5769e52ca68ffdadc7a85a5cd",
-  "test_executable_sha256": "477976de34570a25384b4fc9917569b48106d4e1717ff61b796d6fbc7585a336"
+  "test_executable_sha256": "917a3d1cdba0565a85f2f801a0862d05ee8a0d239a6228ce676fc261ba106449"
 }

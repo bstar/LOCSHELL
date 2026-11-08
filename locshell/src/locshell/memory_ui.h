@@ -1,6 +1,6 @@
 /* Included after the existing field editor helpers. */
 static void memory_edit(unsigned long id){DMRequirement r,*old=dm_find(id);char values[6][DM_SOURCE],line[100];unsigned pos=0;int field=0,k,i;const char*labels[]={"Conventional free KB","EMS free KB","XMS contiguous KB","Total free KB (all memory types)","Basis (D=min, B=budget, V=tested)","Source / configuration evidence"};
- if(locked){info("Unlock DOS SHELL to edit memory requirements.");return;}
+ if(locked){info("Unlock LOC SHELL to edit memory requirements.");return;}
  if(*dm_error){info(dm_error);return;}
  memset(&r,0,sizeof r);if(old)r=*old;r.id=id;
  for(i=0;i<4;i++)strcpy(values[i],"-");if(r.known&1)sprintf(values[0],"%u",r.conv);if(r.known&2)sprintf(values[1],"%u",r.ems);if(r.known&4)sprintf(values[2],"%u",r.xms);

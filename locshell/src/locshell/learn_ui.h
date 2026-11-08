@@ -23,7 +23,7 @@ static void learning_page(void){int item=current_item(),k;unsigned long id;DLRec
    info("Learning requires the integrated LOCSHELL.BAT launcher.");
 #endif
   }
-  if(k=='r'||k=='R'){if(confirm("Reset confirmation and discard any pending learning request?")){if(have)dl_confirm(&r,DL_RESET);remove("C:\\DOSSHELL\\LEARN.REQ");learn_next=0;}}
+  if(k=='r'||k=='R'){if(confirm("Reset confirmation and discard any pending learning request?")){if(have)dl_confirm(&r,DL_RESET);remove("C:\\LOCSHELL\\LEARN.REQ");learn_next=0;}}
   if(k=='c'||k=='C'){
    unsigned long signature;
    if(!have){info("Record a learning run first.");continue;}
@@ -39,8 +39,8 @@ static void learning_page(void){int item=current_item(),k;unsigned long id;DLRec
  }
 }
 static void learning_return(void){FILE*f;unsigned long id;DLRecord r;int k,choice=2;
- f=fopen("C:\\DOSSHELL\\LEARN.ASK","r");if(!f)return;if(fscanf(f,"%lx",&id)!=1){fclose(f);return;}fclose(f);if(!dl_latest(id,&r))return;
- if(r.disposition!=DL_PARTIAL){remove("C:\\DOSSHELL\\LEARN.ASK");return;}
+ f=fopen("C:\\LOCSHELL\\LEARN.ASK","r");if(!f)return;if(fscanf(f,"%lx",&id)!=1){fclose(f);return;}fclose(f);if(!dl_latest(id,&r))return;
+ if(r.disposition!=DL_PARTIAL){remove("C:\\LOCSHELL\\LEARN.ASK");return;}
  for(;;){main_draw(1);window(2,7,76,11,"Learning session returned");
   put(4,9,72,A_PANEL,"Did gameplay and music work correctly during that session?");
   put(4,10,72,A_PANEL,"For games without music, confirm that expected sound worked.");
@@ -53,7 +53,7 @@ static void learning_return(void){FILE*f;unsigned long id;DLRecord r;int k,choic
        answer describes the setup just played, not its pre-launch defaults. */
     for(i=0;i<lb_count;i++)if(lb_identity(lb_entries[i])==id){current=dl_signature(lb_str(lb_entries[i]->run));if(current)r.signature=current;break;}
    }
-   if(choice==2||dl_confirm(&r,choice==0?DL_CONFIRMED:DL_REJECTED))remove("C:\\DOSSHELL\\LEARN.ASK");main_valid=0;return;
+   if(choice==2||dl_confirm(&r,choice==0?DL_CONFIRMED:DL_REJECTED))remove("C:\\LOCSHELL\\LEARN.ASK");main_valid=0;return;
   }
  }
 }

@@ -1,8 +1,8 @@
 /* Real DOS renderer/input/model acceptance with controlled service snapshots. */
-#define DOSSHELL_RENDER_TEST
-#define DOSSHELL_INPUT_TEST
+#define LOCSHELL_RENDER_TEST
+#define LOCSHELL_INPUT_TEST
 #define DS_NETWORK_EMBEDDED
-#include "../../src/dosshell/dosshell.c"
+#include "../../src/locshell/locshell.c"
 #undef main
 static DNSnapshot mock_net;
 static DNWork mock_work;
@@ -29,14 +29,14 @@ int main(void){LPRecent recent[LP_RECENT_MAX];unsigned n,i;unsigned long id,word
  report=fopen("DASHTEST.TXT","w");if(!report)return 2;
  require(lb_load("LIBRARY.TXT")&&dm_load("MEMORY.TSV"),"current catalogue and memory profiles load");
  rebuild();dm_query();memory_loaded=1;id=memory_ids[0];
- remove("C:\\DOSSHELL\\RECENT.TXT");remove("C:\\DOSSHELL\\RECENT.NEW");
+ remove("C:\\LOCSHELL\\RECENT.TXT");remove("C:\\LOCSHELL\\RECENT.NEW");
  for(i=1;i<=10;i++)require(lp_recent_add('A',i,1700000000UL+i),"history writes atomically");
  n=lp_recent_load(recent,LP_RECENT_MAX);require(n==8&&recent[0].id==10&&recent[7].id==3,"history is bounded and most recent first");
  require(lp_recent_add('A',6,1700000050UL),"repeat history entry updates");n=lp_recent_load(recent,8);require(n==8&&recent[0].id==6&&recent[1].id==10,"repeat moves to front without duplicates");
  require(!lp_recent_add('T',0,1),"invalid identity rejected");
- remove("C:\\DOSSHELL\\RECENT.TXT");require(lp_recent_add('A',id,1700000000UL),"record actual catalogue identity");
+ remove("C:\\LOCSHELL\\RECENT.TXT");require(lp_recent_add('A',id,1700000000UL),"record actual catalogue identity");
  mock_net.state=DN_RUNNING;mock_net.ip[0]=198;mock_net.ip[1]=51;mock_net.ip[2]=100;mock_net.ip[3]=17;mock_net.port=21;mock_net.uptime=3661;
- f=fopen("C:\\DOSSHELL\\VAULT.STA","w");fputs("LOC_VAULT 1\nMODE=BACKUP\nSTATE=AVAILABLE\nGAMES=5\nSNAPSHOTS=5\nLAST=2026-11-03 03:25Z\nREPORTED=2026-11-07 04:00Z\nDETAIL=Backup snapshots only.\n",f);fclose(f);
+ f=fopen("C:\\LOCSHELL\\VAULT.STA","w");fputs("LOC_VAULT 1\nMODE=BACKUP\nSTATE=AVAILABLE\nGAMES=5\nSNAPSHOTS=5\nLAST=2026-11-03 03:25Z\nREPORTED=2026-11-07 04:00Z\nDETAIL=Backup snapshots only.\n",f);fclose(f);
  shell_view=7;init_screen();main_draw(0);present();
  require(at(2,2,"DASHBOARD")&&at(1,8,"RECENT LAUNCHES"),"Home layout and recent links visible");
  for(i=2;i<23;i++)require((screen[i*80+18]&255)!=179,"dashboard has no sidebar divider");
@@ -53,15 +53,21 @@ int main(void){LPRecent recent[LP_RECENT_MAX];unsigned n,i;unsigned long id,word
  window(8,8,50,10,"Modal stays intact");memcpy(saved_frame,screen,sizeof screen);dash_tick=0;dashboard_poll();require(!memcmp(saved_frame,screen,sizeof screen),"live dashboard never overwrites modal dialogs");
  show_client=0;show_change=1;strcpy(mock_change.action,"Received");strcpy(mock_change.file,"C:\\UPLOAD\\INCOMING.BIN");mock_change.ok=1;mock_change.bytes=12345;mock_change.stamp=1700000000UL;
  main_draw(0);require(at(47,10,"C:\\UPLOAD\\INCOMING.BIN"),"completed file paths persist visibly");
- f=fopen("C:\\DOSSHELL\\VAULT.STA","w");fputs("LOC_VAULT 1\nMODE=SYNC\nSTATE=SYNCED\nGAMES=5\nSNAPSHOTS=5\n",f);fclose(f);dash_vault_tick=0;dash_refresh(0);require(at(29,4,"No report available"),"unvalidated sync state cannot become a green synced claim");
+ f=fopen("C:\\LOCSHELL\\VAULT.STA","w");fputs("LOC_VAULT 1\nMODE=SYNC\nSTATE=SYNCED\nGAMES=5\nSNAPSHOTS=5\n",f);fclose(f);dash_vault_tick=0;dash_refresh(0);require(at(29,4,"No report available"),"unvalidated sync state cannot become a green synced claim");
  dashboard_input('g');require(shell_view==0,"Games quick link works");view_open(14);require(shell_view==7,"sidebar Home opens dashboard");
  main_draw(0);mx=32;my=15;dashboard_input(-1);require(shell_view==1,"mouse FTP shortcut works across full width");
  shell_view=7;main_draw(0);extra=strdup(lb_str(lb_entries[0]->extra));lb_replace(&lb_entries[0]->extra,"---BOOT---XM\n");putenv("CONFIG=N");
  dash_launch(0);require(!quit_app&&!launch_app,"dashboard respects boot-mode launch gate");lb_replace(&lb_entries[0]->extra,extra);free(extra);
  dash_launch(0);require(quit_app&&launch_app,"dashboard prepares the normal launch and return path");n=lp_recent_load(recent,8);require(n==1&&recent[0].id==id,"preparing a launch does not record a play");
- f=fopen("C:\\DOSSHELL\\LAUNCH.NEW","r");require(f!=NULL,"validated launch request produced");fgets(line,sizeof line,f);fclose(f);require(strstr(line,"LOC3 RUN")!=NULL,"game recent keeps game request type");
- quit_app=launch_app=0;remove("C:\\DOSSHELL\\RUN.BAT");
- require(run_context("C:\nCD \\DOSSHELL\nHELP.EXE\n","TOOL",9,"Ping"),"tool request prepared");
- f=fopen("C:\\DOSSHELL\\LAUNCH.NEW","r");fgets(line,sizeof line,f);fclose(f);require(strstr(line,"LOC3 TOOL 00000009")!=NULL,"utility is identified independently of selected game");
+ f=fopen("C:\\LOCSHELL\\LAUNCH.NEW","r");require(f!=NULL,"validated launch request produced");fgets(line,sizeof line,f);fclose(f);require(strstr(line,"LOC3 RUN")!=NULL,"game recent keeps game request type");
+ quit_app=launch_app=0;remove("C:\\LOCSHELL\\RUN.BAT");
+ require(run_context("C:\nCD \\LOCSHELL\nHELP.EXE\n","TOOL",9,"Ping"),"tool request prepared");
+ f=fopen("C:\\LOCSHELL\\LAUNCH.NEW","r");fgets(line,sizeof line,f);fclose(f);require(strstr(line,"LOC3 TOOL 00000009")!=NULL,"utility is identified independently of selected game");
+ quit_app=launch_app=0;network_utility_run(8,1);
+ require(quit_app&&launch_app,"actual Tools help follows validated launch path");
+ f=fopen("C:\\LOCSHELL\\RUN.BAT","r");require(f!=NULL,"tool script exists");
+ {char commands[256];unsigned got=fread(commands,1,sizeof commands-1,f);commands[got]=0;fclose(f);
+  require(strstr(commands,"CD \\LOCSHELL\\NET\n")!=NULL,"Tools working directory is inside LOCSHELL");
+  require(strstr(commands,"C:\\LOCSHELL\\NET\\BIN\\PING.EXE -help")!=NULL,"Tools executable is inside LOCSHELL");}
  finish_screen();fprintf(report,"DASHBOARD_OK checks=%u history,full-width,live-progress,modal,mouse,keys,boot-gate,typed-launch\n",checks);fclose(report);lb_clear();return 0;
 }
