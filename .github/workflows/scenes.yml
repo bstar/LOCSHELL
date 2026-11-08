@@ -1,4 +1,4 @@
-name: Embedded scenes
+name: LOC SHELL
 on:
   push:
     branches: [main]

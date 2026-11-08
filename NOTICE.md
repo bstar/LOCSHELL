@@ -1,6 +1,6 @@
 # Attribution and provenance
 
-This repository is a modified derivative of **mTCP**, the DOS TCP/IP library
+**LOC SHELL** is an independently maintained project derived from **mTCP**, the DOS TCP/IP library
 and applications by **Michael B. Brutman** and the contributors credited in
 its source files.
 
@@ -9,21 +9,21 @@ its source files.
 - Imported source identifies itself as the 2026-10-10 release.
 - Upstream reference at the time this notice was written:
   `a6170bc7f4c951fcd625e97b5f5ef06f072bac47` (2026-10-15).
-- Fork development and maintenance: **bstar / LoSs oF CoNtRoL (LoC)**.
+- LOC SHELL development and maintenance: **bstar / LoSs oF CoNtRoL (LoC)**.
 
 Michael B. Brutman's and other upstream authors' copyright and license notices
 remain in their files. No ownership of their contributions is claimed by LoC.
 The repository retains the GNU General Public License version 3 in [LICENSE](LICENSE).
-Individual files also contain their applicable license notices. Fork additions
+Individual files also contain their applicable license notices. LOC SHELL additions
 marked GPL-3.0-or-later retain that designation; upstream notices are not relicensed.
 
-## Changes made in this fork
+## LOC SHELL changes
 
-Fork work began on 2026-11-01. Modified upstream files include
+Development from the imported mTCP source began on 2026-11-01. Modified upstream files include
 `src/APPS/FTPSRV/FTPSRV.CPP`, `FTPCL.CPP` and `FTPCL.H`: job handoff,
 management capabilities, integrated LOC SHELL, transfer accounting, file-change
 events and display behavior. The session timing and transfer observations were
-added by this fork in November 2026. Original copyright and GPL notices remain
+added by LOC SHELL in November 2026. Original copyright and GPL notices remain
 intact. The authored frontend, launch helpers and memory observer are under
 `locshell/`; its private installation catalogue and observations are not shipped.
 
@@ -33,14 +33,22 @@ operation history, dashboard and experimental serial observer. The `tools/`
 and `nix/` directories add build, staging and verification tooling. Git history
 records the individual changes and their authors.
 
-This fork uses AI-assisted development. Upstream states that it does not use AI;
+LOC SHELL uses AI-assisted development. Upstream states that it does not use AI;
 that statement describes upstream's own work, not these independently maintained
-changes. The fork is not an official mTCP release, and upstream has not endorsed
-or agreed to support it. Report fork-specific issues to the fork maintainer.
+changes. LOC SHELL is not an official mTCP release, and upstream has not endorsed
+or agreed to support it. Report LOC SHELL issues to its own maintainer.
 
 The original upstream README is preserved at
 [docs/upstream/README.md](docs/upstream/README.md) as historical documentation.
 Its first-person statements and support instructions belong to upstream.
+
+## Project identity
+
+The primary repository is https://github.com/bstar/LOCSHELL, a standalone GitHub
+repository. It retains the complete imported history and its mTCP provenance.
+The earlier https://github.com/bstar/mTCP fork remains as a historical record;
+new LOC SHELL development belongs in LOCSHELL. Changing the hosting relationship
+does not change the authorship or license of inherited code.
 
 ## Distribution
 
