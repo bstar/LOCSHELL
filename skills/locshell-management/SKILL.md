@@ -52,7 +52,10 @@ Read [the agent guide](../../docs/AGENT-GUIDE.md) for game installation, protect
 catalogue files, configuration activation and job recovery. Use
 [the game walkthrough](../../docs/INSTALL-GAMES.md) for steps the user performs
 locally, and [the layout/migration guide](../../docs/MIGRATION.md) when moving an
-older installation. These references are in the same repository as this skill;
+older installation. Do not rewrite an executing batch file, including a parent
+paused at `CALL`; stage the new tree first. After the old session returns to DOS
+and the new shell starts, update and verify the actual startup entry points
+before archiving old directories. These references are in the same repository as this skill;
 follow the symlink to the repository if the skill was registered elsewhere.
 
 Identify an exact game edition and its real save/companion files before an

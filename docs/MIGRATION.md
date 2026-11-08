@@ -62,7 +62,7 @@ it does not guess names or scan unrelated drives.
 The names below are placeholders for the existing directories and preferences:
 
 ```sh
-dosctl --json import-installation --shell /OLDAPP --network /OLDNET --scene /OLDSAVER --preferences OLD.CFG --package /host/path/package --startup /AUTOEXEC.BAT --dry-run
+dosctl --json import-installation --shell /OLDAPP --network /OLDNET --scene /OLDSAVER --preferences OLD.CFG --package /host/path/package --dry-run
 ```
 
 The dry run reads active source files and reports the proposed destination,
@@ -76,8 +76,12 @@ an uncertain partial installation. If a catalogue launches programs by an old
 application path, review that entry rather than blindly changing its identity.
 
 When the reviewed plan matches the request, use the same command without
-`--dry-run`. Add `--startup` for each explicitly reviewed profile startup file
-that also needs its application paths updated. The importer:
+`--dry-run`. `--startup` can update explicitly reviewed bootstrap files after
+staging, but only use it when those batch files are not executing. A batch
+paused at `CALL` while its child runs is still executing. For a live shell,
+stage without `--startup`; after the old session has returned to DOS and the
+new shell is verified, deploy reviewed startup copies with backups inside
+`C:\LOCSHELL\BACKUP`. The importer:
 
 1. Checks the package hashes and retains host backups of imported active files.
 2. Stages a complete production payload beside the running installation.
@@ -104,6 +108,8 @@ has been physically tested. At the retro keyboard:
 
 The agent can then check the new server's `SITE AGENT` response for `layout=2`,
 perform native diagnostics and record the user's actual playing/input results.
+Before archiving, verify that every actual boot/profile entry point now calls
+the new tree. Otherwise a later reboot could still request a previous folder.
 For an inspected import, archive the old trees with its actual ID:
 
 ```sh
