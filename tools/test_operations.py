@@ -23,6 +23,17 @@ class Tests(unittest.TestCase):
    p=self.base/(x+'.EXE');p.write_bytes(('new-'+x).encode());files.append({'source':str(p),'destination':'/APP/'+x+'.EXE','sha256':hashlib.sha256(p.read_bytes()).hexdigest()})
   self.manifest=self.base/'manifest.json';self.manifest.write_text(json.dumps({'files':files,'preserve':['/APP/*.PRM']}));self.a=N(manifest=self.manifest,credentials=None,dry_run=False)
  def tearDown(self):self.tmp.cleanup()
+ def test_ascii_size_refusal_preserves_existing_files(self):
+  def size(path):
+   if path not in self.f.files:raise ftplib.error_perm('550 missing')
+   raise ftplib.error_perm('550 No SIZE information available in ASCII mode')
+  self.f.size=size
+  self.assertEqual(operations.maybe(self.api,self.f,'/APP/A.EXE'),b'old-a')
+  release=operations.deploy(self.a,self.api)
+  self.assertTrue(all(row['existed'] for row in release['files']))
+  self.assertEqual(self.f.files[release['files'][0]['backup']],b'old-a')
+  operations.restore(N(release=release['id'],credentials=None),self.api)
+  self.assertEqual(self.f.files['/APP/A.EXE'],b'old-a')
  def test_dryrun(self):
   before=copy.deepcopy(self.f.files);self.a.dry_run=True;r=operations.deploy(self.a,self.api);self.assertEqual(r['state'],'dry-run');self.assertEqual(before,self.f.files)
  def test_commit_restore(self):

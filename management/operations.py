@@ -24,7 +24,12 @@ def history(api,kind,**fields):
 
 def maybe(api,f,path):
  try:
-  if hasattr(f,'size'):f.size(path)
+  if hasattr(f,'size'):
+   try:f.size(path)
+   except api.ftplib.error_perm as e:
+    # LIST selects ASCII mode. mTCP then rejects SIZE for existing files;
+    # retrbinary selects TYPE I and safely reads their actual bytes.
+    if not (str(e).startswith('550') and 'ASCII' in str(e).upper()):raise
   return api.read(f,path)
  except api.ftplib.error_perm as e:
   if str(e).startswith('550'):return None
