@@ -17,7 +17,7 @@ class FTP:
         self.files={'/LOCSHELL/ISLAND/VOLUME.CFG':b'21\r\n','/LOCSHELL/ISLAND/SCENE.EGA':b'previous'}
         self.dirs={'/LOCSHELL','/LOCSHELL/ISLAND'}
         self.commands=[]
-        self.capabilities='211 locshell=22 layout=2 saverselect=1'
+        self.capabilities='211 locshell=23 layout=2 saverselect=1'
         self.fail=False
     def __enter__(self):return self
     def __exit__(self,*args):pass
@@ -86,6 +86,15 @@ class Scenes(unittest.TestCase):
         (self.pack/'MOON.BIN').unlink()
         with self.assertRaises(ValueError):self.install()
         self.assertFalse(self.ftp.commands)
+    def test_real_preparation_works_with_json_diagnostic_capture(self):
+        import contextlib,io
+        self.a.select=True
+        with contextlib.redirect_stdout(io.StringIO()),contextlib.redirect_stderr(io.StringIO()):
+            result=scenes.handle(self.a,self.api)
+        self.assertEqual(result['state'],'installed')
+        self.assertEqual(result['files'],17)
+        self.assertEqual(self.ftp.files['/LOCSHELL/ISLAND/VOLUME.CFG'],b'21\r\n')
+        self.assertEqual(self.ftp.commands[-1],'SITE SAVER SELECT island')
     def test_pinned_pack_generation(self):
         pin=scenes.prepare_pack(self.root/'real-pack')
         self.assertEqual(len(pin),40)

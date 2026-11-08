@@ -29,18 +29,29 @@ def parser(sub):
     install.add_argument('--preview', action='store_true', help='Queue a preview after clients disconnect')
 
 
+def checked(command, directory, progress=False):
+    # The CLI captures diagnostics in StringIO for --json. Pass pipes to child
+    # processes rather than requiring those Python streams to expose fileno().
+    result=subprocess.run(command,cwd=directory,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+    if progress and result.stdout:print(result.stdout,end='',file=sys.stderr)
+    if result.stderr:print(result.stderr,end='',file=sys.stderr)
+    if result.returncode:
+        raise RuntimeError('Pinned Island preparation failed: '+(result.stderr or result.stdout or 'command exited '+str(result.returncode)).strip()[-2000:])
+    return result.stdout
+
+
 def prepare_pack(destination, repository=REPOSITORY):
     """Use the repository-pinned source; never reset someone's modified checkout."""
     repository = Path(repository)
     module = repository / 'third_party/dos-scenes'
-    pin = subprocess.check_output(['git','ls-tree','HEAD','third_party/dos-scenes'],cwd=repository,text=True).split()[2]
+    pin = checked(['git','ls-tree','HEAD','third_party/dos-scenes'],repository).split()[2]
     if not (module / 'tools/pack_island.py').is_file():
-        subprocess.run(['git','submodule','update','--init','--','third_party/dos-scenes'],cwd=repository,check=True,stdout=sys.stderr)
-    actual = subprocess.check_output(['git','rev-parse','HEAD'],cwd=module,text=True).strip()
+        checked(['git','submodule','update','--init','--','third_party/dos-scenes'],repository,progress=True)
+    actual = checked(['git','rev-parse','HEAD'],module).strip()
     if actual != pin:
         raise RuntimeError('Scene checkout differs from the repository pin; it was not overwritten')
-    subprocess.run(['git','diff','--exit-code',pin,'--','tools/pack_island.py','tools/scene_format.py','scenes/island'],cwd=module,check=True,stdout=sys.stderr)
-    subprocess.run([sys.executable,str(module/'tools/pack_island.py'),'--output',str(destination)],cwd=module,check=True,stdout=sys.stderr)
+    checked(['git','diff','--exit-code',pin,'--','tools/pack_island.py','tools/scene_format.py','scenes/island'],module)
+    checked([sys.executable,str(module/'tools/pack_island.py'),'--output',str(destination)],module,progress=True)
     files = {p.name for p in Path(destination).iterdir() if p.is_file()}
     if files != REQUIRED:
         raise RuntimeError('Incomplete or unexpected Island pack')
